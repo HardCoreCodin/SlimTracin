@@ -10,7 +10,10 @@
 #include <string.h>
 #include <malloc.h>
 
-#include "./SlimEngine/core/types.h"
+#include "./SlimRayTracer/core/types.h"
+#include "./SlimRayTracer/math/vec3.h"
+#include "./SlimRayTracer/math/mat3.h"
+#include "./SlimRayTracer/render/acceleration_structures/builder_top_down.h"
 
 enum VertexAttributes {
     VertexAttributes_None,
@@ -32,6 +35,9 @@ int obj2mesh(char* obj_file_path, char* mesh_file_path) {
     mesh.vertex_normal_indices   = null;
     mesh.vertex_uvs              = null;
     mesh.vertex_uvs_indices      = null;
+    mesh.triangles               = null;
+    mesh.bvh.leaf_ids            = null;
+    mesh.bvh.nodes               = null;
 
     FILE* file;
     file = fopen(obj_file_path, "r");
@@ -62,6 +68,7 @@ int obj2mesh(char* obj_file_path, char* mesh_file_path) {
     }
     fclose(file);
 
+    mesh.triangles               = (Triangle*             )malloc(sizeof(Triangle             ) * mesh.triangle_count);
     mesh.vertex_position_indices = (TriangleVertexIndices*)malloc(sizeof(TriangleVertexIndices) * mesh.triangle_count);
     mesh.vertex_positions        = (                 vec3*)malloc(sizeof(vec3                 ) * mesh.vertex_count);
     mesh.edge_vertex_indices     = (    EdgeVertexIndices*)malloc(sizeof(EdgeVertexIndices    ) * mesh.triangle_count * 3);
@@ -74,6 +81,24 @@ int obj2mesh(char* obj_file_path, char* mesh_file_path) {
     } else if (vertex_attributes == VertexAttributes_PositionsAndUVs) {
         mesh.vertex_uvs            = (                 vec2*)malloc(sizeof(vec2                 ) * mesh.uvs_count);
         mesh.vertex_uvs_indices    = (TriangleVertexIndices*)malloc(sizeof(TriangleVertexIndices) * mesh.triangle_count);
+    }
+
+    mesh.bvh.nodes    = (BVHNode*)malloc(sizeof(BVHNode) * mesh.triangle_count * 2);
+    mesh.bvh.leaf_ids = (u32*    )malloc(sizeof(u32)     * mesh.triangle_count);
+
+    BVHBuilder builder;
+    builder.build_iterations = (BuildIteration*)malloc(sizeof(BuildIteration) * mesh.triangle_count);
+    builder.leaf_nodes       = (BVHNode*       )malloc(sizeof(BVHNode)        * mesh.triangle_count);
+    builder.leaf_ids         = (u32*           )malloc(sizeof(u32)            * mesh.triangle_count);
+    builder.sort_stack       = (i32*           )malloc(sizeof(i32)            * mesh.triangle_count);
+
+    PartitionAxis *pa = builder.partition_axis;
+    for (u8 i = 0; i < 3; i++, pa++) {
+        pa->sorted_leaf_ids     = (u32* )malloc(sizeof(u32)  * mesh.triangle_count);
+        pa->left.aabbs          = (AABB*)malloc(sizeof(AABB) * mesh.triangle_count);
+        pa->right.aabbs         = (AABB*)malloc(sizeof(AABB) * mesh.triangle_count);
+        pa->left.surface_areas  = (f32* )malloc(sizeof(f32)  * mesh.triangle_count);
+        pa->right.surface_areas = (f32* )malloc(sizeof(f32)  * mesh.triangle_count);
     }
 
     vec3 *vertex_position = mesh.vertex_positions;
@@ -187,14 +212,14 @@ int obj2mesh(char* obj_file_path, char* mesh_file_path) {
         }
     }
 
+    updateMeshBVH(&mesh, &builder);
+
     file = fopen(mesh_file_path, "wb");
 
-    fwrite(&mesh.aabb,           sizeof(AABB), 1, file);
-    fwrite(&mesh.vertex_count,   sizeof(u32),  1, file);
-    fwrite(&mesh.triangle_count, sizeof(u32),  1, file);
-    fwrite(&mesh.edge_count,     sizeof(u32),  1, file);
-    fwrite(&mesh.uvs_count,      sizeof(u32),  1, file);
-    fwrite(&mesh.normals_count,  sizeof(u32),  1, file);
+    fwrite(&mesh, sizeof(Mesh), 1, file);
+    fwrite( mesh.bvh.nodes,               sizeof(BVHNode)              , mesh.bvh.node_count, file);
+    fwrite( mesh.bvh.leaf_ids,            sizeof(u32)                  , mesh.triangle_count, file);
+    fwrite( mesh.triangles,               sizeof(Triangle)             , mesh.triangle_count, file);
     fwrite( mesh.vertex_positions,        sizeof(vec3)                 , mesh.vertex_count,   file);
     fwrite( mesh.vertex_position_indices, sizeof(TriangleVertexIndices), mesh.triangle_count, file);
     fwrite( mesh.edge_vertex_indices,     sizeof(EdgeVertexIndices)    , mesh.edge_count,     file);

@@ -160,6 +160,7 @@ enum RenderMode {
 };
 
 typedef struct Primitive {
+    Rect screen_bounds;
     quat rotation;
     vec3 position, scale;
     u32 id;
@@ -221,11 +222,6 @@ typedef struct BVH {
     BVHNode *nodes;
 } BVH;
 
-typedef struct SSB {
-    Rect *bounds;
-    vec3 *view_positions;
-} SSB;
-
 typedef struct NavigationSpeedSettings {
     f32 turn, zoom, dolly, pan, orbit, orient;
 } NavigationSpeedSettings;
@@ -258,6 +254,7 @@ typedef struct ViewportSettings {
     f32 near_clipping_plane_distance,
         far_clipping_plane_distance;
     u32 hud_line_count;
+    HUDLine *hud_lines;
     enum RenderMode render_mode;
     bool show_hud, show_BVH, show_SSB, use_GPU;
 } ViewportSettings;
@@ -369,7 +366,7 @@ typedef struct Selection {
     enum BoxSide box_side;
     f32 object_distance;
     u32 object_type, object_id;
-    bool changed;
+    bool changed, transformed;
 } Selection;
 
 typedef struct SceneSettings {
@@ -383,14 +380,14 @@ typedef struct SceneSettings {
     u32 curves;
     u32 boxes;
     u32 grids;
-    String *mesh_files;
+    String file, *mesh_files;
+    bool autoload;
 } SceneSettings;
 
 typedef struct Scene {
     SceneSettings settings;
     Selection selection;
     BVH bvh;
-    SSB ssb;
 
     Camera *cameras;
     AmbientLight ambient_light;
@@ -452,19 +449,6 @@ typedef struct Defaults {
     u64 additional_memory_size;
     Settings settings;
 } Defaults;
-
-typedef struct App {
-    Memory memory;
-    Platform platform;
-    Controls controls;
-    PixelGrid window_content;
-    AppCallbacks on;
-    Time time;
-    Scene scene;
-    Viewport viewport;
-    bool is_running;
-    void *user_data;
-} App;
 
 void setBoxEdgesFromVertices(BoxEdges *edges, BoxVertices *vertices) {
     edges->sides.front_top.from    = vertices->corners.front_top_left;

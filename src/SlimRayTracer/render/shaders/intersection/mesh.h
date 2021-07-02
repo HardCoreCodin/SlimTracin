@@ -2,12 +2,11 @@
 
 #include "../common.h"
 
-INLINE bool hitTriangles(Ray *ray, RayHit *hit, RayHit *closest_hit, Triangle *triangles, u32 *triangle_ids, u32 triangle_count, bool any_hit) {
+INLINE bool hitTriangles(Ray *ray, RayHit *hit, RayHit *closest_hit, Triangle *triangles, u32 triangle_count, bool any_hit) {
     vec3 UV;
     bool found_triangle = false;
-    Triangle *triangle;
-    for (u32 i = 0; i < triangle_count; i++) {
-        triangle = triangles + triangle_ids[i];
+    Triangle *triangle = triangles;
+    for (u32 i = 0; i < triangle_count; i++, triangle++) {
         if (hitPlane(triangle->position, triangle->normal, &ray->origin, &ray->direction, hit) &&
             hit->distance < closest_hit->distance) {
 
@@ -46,7 +45,7 @@ INLINE bool traceMesh(Trace *trace, Mesh *mesh, bool any_hit) {
         return false;
 
     if (unlikely(mesh->bvh.nodes->primitive_count))
-        return hitTriangles(ray, hit, closest_hit, mesh->triangles, mesh->bvh.leaf_ids, mesh->triangle_count, any_hit);
+        return hitTriangles(ray, hit, closest_hit, mesh->triangles, mesh->triangle_count, any_hit);
 
     BVHNode *left_node = mesh->bvh.nodes + mesh->bvh.nodes->first_child_id;
     BVHNode *right_node, *tmp_node;
@@ -60,7 +59,7 @@ INLINE bool traceMesh(Trace *trace, Mesh *mesh, bool any_hit) {
 
         if (hit_left) {
             if (unlikely(left_node->primitive_count)) {
-                if (hitTriangles(ray, hit, closest_hit, mesh->triangles, mesh->bvh.leaf_ids + left_node->first_child_id, left_node->primitive_count, any_hit)) {
+                if (hitTriangles(ray, hit, closest_hit, mesh->triangles + left_node->first_child_id, left_node->primitive_count, any_hit)) {
                     found = true;
                     if (any_hit)
                         break;
@@ -73,7 +72,7 @@ INLINE bool traceMesh(Trace *trace, Mesh *mesh, bool any_hit) {
 
         if (hit_right) {
             if (unlikely(right_node->primitive_count)) {
-                if (hitTriangles(ray, hit, closest_hit, mesh->triangles, mesh->bvh.leaf_ids + right_node->first_child_id, right_node->primitive_count, any_hit)) {
+                if (hitTriangles(ray, hit, closest_hit, mesh->triangles + right_node->first_child_id, right_node->primitive_count, any_hit)) {
                     found = true;
                     if (any_hit)
                         break;

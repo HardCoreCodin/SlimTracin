@@ -100,13 +100,15 @@ INLINE f32 gammaCorrected(f32 x) {
 //    return powf(x, 1.0f/2.2f);
 //}
 
-#define setPixelColor(pixel, color) \
-        color.x *= 255; \
-        color.y *= 255; \
-        color.z *= 255; \
-        pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x; \
-        pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y; \
-        pixel->color.B = color.z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.z
+INLINE void setPixelColor(Pixel *pixel, vec3 *color) {
+    color->x *= 255;
+    color->y *= 255;
+    color->z *= 255;
+    pixel->color.R = color->x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color->x;
+    pixel->color.G = color->y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color->y;
+    pixel->color.B = color->z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color->z;
+}
+
 
 //#define setPixelToneMappedColor(pixel, color) \
 //        color.x = toneMapped(color.x);    \
@@ -114,11 +116,13 @@ INLINE f32 gammaCorrected(f32 x) {
 //        color.z = toneMapped(color.z);    \
 //        setPixelColor(pixel, color)
 
-#define setPixelBakedToneMappedColor(pixel, color) \
-        color.x = toneMappedBaked(color.x);    \
-        color.y = toneMappedBaked(color.y);    \
-        color.z = toneMappedBaked(color.z);    \
-        setPixelColor(pixel, color)
+
+INLINE void setPixelBakedToneMappedColor(Pixel *pixel, vec3 *color) {
+    color->x = toneMappedBaked(color->x);
+    color->y = toneMappedBaked(color->y);
+    color->z = toneMappedBaked(color->z);
+    setPixelColor(pixel, color);
+}
 
 #define setPixelGammaCorrectedColor(pixel, color) \
         color.x = gammaCorrected(color.x);    \

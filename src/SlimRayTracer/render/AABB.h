@@ -26,10 +26,11 @@ INLINE AABB mergeAABBs(AABB lhs, AABB rhs) {
     AABB merged;
 
     merged.min.x = lhs.min.x < rhs.min.x ? lhs.min.x : rhs.min.x;
-    merged.max.x = lhs.max.x > rhs.max.x ? lhs.max.x : rhs.max.x;
     merged.min.y = lhs.min.y < rhs.min.y ? lhs.min.y : rhs.min.y;
-    merged.max.y = lhs.max.y > rhs.max.y ? lhs.max.y : rhs.max.y;
     merged.min.z = lhs.min.z < rhs.min.z ? lhs.min.z : rhs.min.z;
+
+    merged.max.x = lhs.max.x > rhs.max.x ? lhs.max.x : rhs.max.x;
+    merged.max.y = lhs.max.y > rhs.max.y ? lhs.max.y : rhs.max.y;
     merged.max.z = lhs.max.z > rhs.max.z ? lhs.max.z : rhs.max.z;
 
     return merged;

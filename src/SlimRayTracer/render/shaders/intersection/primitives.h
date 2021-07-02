@@ -21,7 +21,6 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
     RayHit *hit = &trace->current_hit;
     RayHit *closest_hit = &trace->closest_hit;
 
-    Rect *bounds;
     Primitive *hit_primitive, *primitive;
     u32 *primitive_id = primitive_ids;
     for (u32 i = 0; i < primitive_count; i++, primitive_id++) {
@@ -30,11 +29,10 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
             if (!(primitive->flags & IS_VISIBLE))
                 continue;
 
-            bounds = scene->ssb.bounds + *primitive_id;
-            if (x <   bounds->min.x ||
-                x >=  bounds->max.x ||
-                y <   bounds->min.y ||
-                y >=  bounds->max.y)
+            if (x <   primitive->screen_bounds.min.x ||
+                x >=  primitive->screen_bounds.max.x ||
+                y <   primitive->screen_bounds.min.y ||
+                y >=  primitive->screen_bounds.max.y)
                 continue;
         }
 
@@ -47,13 +45,11 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
             case PrimitiveType_Sphere     : current_found = hitSphere(     hit, Ro, Rd, primitive->flags); break;
             case PrimitiveType_Tetrahedron: current_found = hitTetrahedron(hit, Ro, Rd, primitive->flags); break;
             case PrimitiveType_Mesh:
-                trace->local_space_ray.direction_reciprocal = (
-                        primitive->flags & (u8) (IS_ROTATED | IS_SCALED_NON_UNIFORMLY) ?
-                        oneOverVec3(*Rd) :
-                        ray->direction_reciprocal);
-                trace->closest_mesh_hit.distance = closest_hit->distance != INFINITY ?
-                        lengthVec3(subVec3(convertPositionToObjectSpace(closest_hit->position, primitive), *Ro)) :
-                        INFINITY;
+                trace->local_space_ray.direction_reciprocal = oneOverVec3(*Rd);
+                trace->closest_mesh_hit.distance = INFINITY;
+                if (!any_hit && closest_hit->distance != INFINITY)
+                    trace->closest_mesh_hit.distance = lengthVec3(subVec3(convertPositionToObjectSpace(closest_hit->position, primitive), *Ro));
+
                 prePrepRay(&trace->local_space_ray);
                 current_found = traceMesh(trace, scene->meshes + primitive->id, any_hit);
                 if (current_found) *hit = trace->closest_mesh_hit;

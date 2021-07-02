@@ -134,7 +134,7 @@ bool computeSSB(Rect *bounds, vec3 *pos, f32 r, f32 focal_length, Dimensions *di
     return false;
 }
 
-inline void updatePrimitiveSSB(Scene *scene, Viewport *viewport, Primitive *primitive, Rect *bounds, vec3 *view_space_position) {
+INLINE void updatePrimitiveSSB(Scene *scene, Viewport *viewport, Primitive *primitive, vec3 *view_space_position) {
     f32 radius, min_r, max_r;
     AABB *aabb;
 
@@ -154,17 +154,23 @@ inline void updatePrimitiveSSB(Scene *scene, Viewport *viewport, Primitive *prim
     }
 
     primitive->flags &= ~IS_VISIBLE;
-    if (computeSSB(bounds, view_space_position, radius, viewport->camera->focal_length, &viewport->frame_buffer->dimensions))
+    if (computeSSB(&primitive->screen_bounds,
+                   view_space_position, radius,
+                   viewport->camera->focal_length,
+                   &viewport->frame_buffer->dimensions))
         primitive->flags |= IS_VISIBLE;
 }
 
 void updateSceneSSB(Scene *scene, Viewport *viewport) {
-    vec3 *view_space_position = scene->ssb.view_positions;
-    Rect *bounds = scene->ssb.bounds;
+    xform3 *xform = &viewport->camera->transform;
     Primitive *primitive = scene->primitives;
+    vec3 view_space_position;
 
-    for (u32 i = 0; i < scene->settings.primitives; i++, primitive++, bounds++, view_space_position++)
-        updatePrimitiveSSB(scene, viewport, primitive, bounds, view_space_position);
+    for (u32 i = 0; i < scene->settings.primitives; i++, primitive++) {
+        view_space_position = subVec3(primitive->position, xform->position);
+        view_space_position = mulVec3Mat3(view_space_position, xform->rotation_matrix_inverted);
+        updatePrimitiveSSB(scene, viewport, primitive, &view_space_position);
+    }
 
     uploadSSB(scene);
 }
@@ -172,20 +178,25 @@ void updateSceneSSB(Scene *scene, Viewport *viewport) {
 void drawSSB(Scene *scene, Viewport *viewport) {
     RGBA color;
     Primitive *primitive = scene->primitives;
-    Rect *bounds = scene->ssb.bounds;
-    for (u32 i = 0; i < scene->settings.primitives; i++, primitive++, bounds++) if (primitive->flags & IS_VISIBLE) {
-        switch (primitive->type) {
-            case PrimitiveType_Box        : color = Color(Cyan);    break;
-            case PrimitiveType_Quad       : color = Color(White);   break;
-            case PrimitiveType_Sphere     : color = Color(Yellow);  break;
-            case PrimitiveType_Tetrahedron: color = Color(Magenta); break;
-            case PrimitiveType_Mesh       : color = Color(Red);     break;
-            default:
-                continue;
+    vec2i min, max;
+    for (u32 i = 0; i < scene->settings.primitives; i++, primitive++) {
+        if (primitive->flags & IS_VISIBLE) {
+            switch (primitive->type) {
+                case PrimitiveType_Box        : color = Color(Cyan);    break;
+                case PrimitiveType_Quad       : color = Color(White);   break;
+                case PrimitiveType_Sphere     : color = Color(Yellow);  break;
+                case PrimitiveType_Tetrahedron: color = Color(Magenta); break;
+                case PrimitiveType_Mesh       : color = Color(Red);     break;
+                default:
+                    continue;
+            }
+            min = primitive->screen_bounds.min;
+            max = primitive->screen_bounds.max;
+
+            drawHLine2D(viewport->frame_buffer, color, min.x, max.x, min.y);
+            drawHLine2D(viewport->frame_buffer, color, min.x, max.x, max.y);
+            drawVLine2D(viewport->frame_buffer, color, min.y, max.y, min.x);
+            drawVLine2D(viewport->frame_buffer, color, min.y, max.y, max.x);
         }
-        drawHLine2D(viewport->frame_buffer, color, bounds->min.x, bounds->max.x, bounds->min.y);
-        drawHLine2D(viewport->frame_buffer, color, bounds->min.x, bounds->max.x, bounds->max.y);
-        drawVLine2D(viewport->frame_buffer, color, bounds->min.y, bounds->max.y, bounds->min.x);
-        drawVLine2D(viewport->frame_buffer, color, bounds->min.y, bounds->max.y, bounds->max.x);
     }
 }

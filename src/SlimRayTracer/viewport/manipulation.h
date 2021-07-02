@@ -61,6 +61,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
     RayHit *hit = &selection->hit;
     Ray ray, *local_ray = &selection->local_ray;
     Primitive primitive;
+    selection->transformed = false;
 
     if (mouse->left_button.is_pressed) {
         if (!mouse->left_button.is_handled) { // This is the first frame after the left mouse button went down:
@@ -130,6 +131,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
             if (selection->box_side) {
                 if (selection->primitive) {
                     if (any_mouse_button_is_pressed) {
+                        selection->transformed = true;
                         setRayFromCoords(&ray, mouse->pos, viewport);
                         if (hitPlane(selection->transformation_plane_origin,
                                      selection->transformation_plane_normal,
@@ -193,6 +195,8 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                 *selection->world_position = position;
                 if (selection->primitive)
                     selection->primitive->flags |= IS_TRANSLATED;
+
+                selection->transformed = true;
             }
         }
     }

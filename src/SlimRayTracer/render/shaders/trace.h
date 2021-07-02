@@ -87,7 +87,7 @@ INLINE bool traceSecondaryRay(Ray *ray, Trace *trace, Scene *scene) {
     return traceScene(ray, trace, scene, false);
 }
 
-INLINE bool inShadow(Ray *ray, Trace *trace, Scene *scene) {
+bool inShadow(Ray *ray, Trace *trace, Scene *scene) {
     return traceScene(ray, trace, scene, true);
 }
 

@@ -1,11 +1,10 @@
 ﻿#pragma once
 
-#include <stdlib.h>
-#include <string.h>
-
 #include "../../shapes/line.h"
 #include "../../scene/box.h"
 #include "../../render/AABB.h"
+#include "../../math/mat3.h"
+#include "../../math/vec3.h"
 
 
 typedef struct {
@@ -27,9 +26,18 @@ typedef struct {
     BuildIteration *build_iterations;
     BVHNode *leaf_nodes;
     u32 *leaf_ids;
+    i32 *sort_stack;
     PartitionAxis partition_axis[3];
 } BVHBuilder;
-BVHBuilder bvh_builder;
+
+u32 getBVHBuilderMemorySize(Scene *scene, u32 max_leaf_count) {
+    u32 memory_size = sizeof(u32) + sizeof(i32) + 2 * (sizeof(AABB) + sizeof(f32));
+    memory_size *= 3;
+    memory_size += sizeof(BuildIteration) + sizeof(BVHNode) + sizeof(u32);
+    memory_size *= max_leaf_count;
+
+    return memory_size;
+}
 
 void initBVHBuilder(BVHBuilder *builder, Scene *scene, Memory *memory) {
     u32 max_triangle_count = 0;
@@ -43,6 +51,7 @@ void initBVHBuilder(BVHBuilder *builder, Scene *scene, Memory *memory) {
     builder->build_iterations = allocateMemory(memory, sizeof(BuildIteration) * leaf_node_count);
     builder->leaf_nodes       = allocateMemory(memory, sizeof(BVHNode)        * leaf_node_count);
     builder->leaf_ids         = allocateMemory(memory, sizeof(u32)            * leaf_node_count);
+    builder->sort_stack       = allocateMemory(memory, sizeof(i32)            * leaf_node_count);
 
     PartitionAxis *pa = builder->partition_axis;
     for (u8 i = 0; i < 3; i++, pa++) {
@@ -54,62 +63,72 @@ void initBVHBuilder(BVHBuilder *builder, Scene *scene, Memory *memory) {
     }
 }
 
-u32 partition(u32 *arr, u32 start, u32 end) {
-    u32 pIndex = start;
-    u32 pivot = arr[end];
-    u32 t;
-    for (u32 i = start; i < end; i++) {
-        if(arr[i] < pivot) {
-            t = arr[i];
-            arr[i] = arr[pIndex];
-            arr[pIndex] = t;
+i32 partitionNodesByAxis(BVHNode *nodes, u8 axis, i32 start, i32 end, u32 *leaf_ids) {
+    i32 pIndex = start;
+    i32 pivot = (i32)leaf_ids[end];
+    i32 t;
+    bool do_swap;
+
+    for (i32 i = start; i < end; i++) {
+        switch (axis) {
+            case 0: do_swap = nodes[leaf_ids[i]].aabb.max.x < nodes[pivot].aabb.max.x; break;
+            case 1: do_swap = nodes[leaf_ids[i]].aabb.max.y < nodes[pivot].aabb.max.y; break;
+            case 2: do_swap = nodes[leaf_ids[i]].aabb.max.z < nodes[pivot].aabb.max.z; break;
+        }
+        if (do_swap) {
+            t = (i32)leaf_ids[i];
+            leaf_ids[i] = leaf_ids[pIndex];
+            leaf_ids[pIndex] = t;
             pIndex++;
         }
     }
-    t = arr[end];
-    arr[end] = arr[pIndex];
-    arr[pIndex] = t;
+    t = (i32)leaf_ids[end];
+    leaf_ids[end] = leaf_ids[pIndex];
+    leaf_ids[pIndex] = t;
 
     return pIndex;
 }
 
-void quickSort(u32 *arr, u32 start, u32 end) {
-    if (start < end) {
-        u32 pIndex = partition(arr, start, end);
-        quickSort(arr, start, pIndex-1);
-        quickSort(arr, pIndex+1, end);
+void sortNodesByAxis(BVHNode *nodes, u8 axis, i32 start, i32 end, i32 *stack, u32 *leaf_ids) {
+    i32 top = -1;
+
+    // push initial values of start and end to stack
+    stack[++top] = start;
+    stack[++top] = end;
+
+    // Keep popping from stack while is not empty
+    while (top >= 0) {
+        // Pop h and l
+        end = stack[top--];
+        start = stack[top--];
+
+        // Set pivot element at its correct position
+        // in sorted array
+        i32 pIndex = partitionNodesByAxis(nodes, axis, start, end, leaf_ids);
+
+        // If there are elements on left side of pivot,
+        // then push left side to stack
+        if (pIndex - 1 > start) {
+            stack[++top] = start;
+            stack[++top] = pIndex - 1;
+        }
+
+        // If there are elements on right side of pivot,
+        // then push right side to stack
+        if (pIndex + 1 < end) {
+            stack[++top] = pIndex + 1;
+            stack[++top] = end;
+        }
     }
 }
 
-BVHNode *leaf_nodes = null;
-
-int sortCmpX(const void *lhs, const void *rhs) {
-    f32 l = leaf_nodes[*((u32*)lhs)].aabb.max.x;
-    f32 r = leaf_nodes[*((u32*)rhs)].aabb.max.x;
-    return l < r ? -1 : (l > r ? 1 : 0);
-}
-int sortCmpY(const void *lhs, const void *rhs) {
-    f32 l = leaf_nodes[*((u32*)lhs)].aabb.max.y;
-    f32 r = leaf_nodes[*((u32*)rhs)].aabb.max.y;
-    return l < r ? -1 : (l > r ? 1 : 0);
-}
-int sortCmpZ(const void *lhs, const void *rhs) {
-    f32 l = leaf_nodes[*((u32*)lhs)].aabb.max.z;
-    f32 r = leaf_nodes[*((u32*)rhs)].aabb.max.z;
-    return l < r ? -1 : (l > r ? 1 : 0);
-}
-
-void partitionBVHNodeIDs(PartitionAxis *pa, u8 axis, BVHNode *nodes, u32 N) {
+void partitionBVHNodeIDs(PartitionAxis *pa, u8 axis, BVHNode *nodes, i32 *stack, u32 N) {
     u32 current_index, next_index, left_index, right_index;
     f32 current_surface_area;
     left_index = 0;
     right_index = N - 1;
 
-    switch (axis) {
-        case 0:  qsort(pa->sorted_leaf_ids, N, sizeof(u32), sortCmpX); break;
-        case 1:  qsort(pa->sorted_leaf_ids, N, sizeof(u32), sortCmpY); break;
-        default: qsort(pa->sorted_leaf_ids, N, sizeof(u32), sortCmpZ); break;
-    }
+    sortNodesByAxis(nodes, axis, 0, (i32)N-1, stack, pa->sorted_leaf_ids);
 
     AABB L = nodes[pa->sorted_leaf_ids[left_index]].aabb;
     AABB R = nodes[pa->sorted_leaf_ids[right_index]].aabb;
@@ -149,7 +168,6 @@ void partitionBVHNodeIDs(PartitionAxis *pa, u8 axis, BVHNode *nodes, u32 N) {
 u32 splitBVHNode(BVHNode *bvh_nodes, u32 *bvh_node_count, BVHBuilder *builder, BVHNode *node, u32 start, u32 end) {
     u32 N = end - start;
     u32 *leaf_ids = builder->leaf_ids + start;
-    BVHNode *nodes = builder->leaf_nodes;
 
     node->first_child_id = *bvh_node_count;
     BVHNode *left_node  = bvh_nodes + (*bvh_node_count)++;
@@ -161,12 +179,11 @@ u32 splitBVHNode(BVHNode *bvh_nodes, u32 *bvh_node_count, BVHBuilder *builder, B
     f32 smallest_surface_area = INFINITY;
     PartitionAxis *chosen_partition_axis = builder->partition_axis, *pa = builder->partition_axis;
 
-    u32 byte_count = sizeof(u32) * N;
     for (u8 axis = 0; axis < 3; axis++, pa++) {
-        memcpy(pa->sorted_leaf_ids, leaf_ids, byte_count);
+        for (u32 i = 0; i < N; i++) pa->sorted_leaf_ids[i] = leaf_ids[i];
 
         // Partition the BVH's primitive-ids for the current partition axis:
-        partitionBVHNodeIDs(pa, axis, nodes, N);
+        partitionBVHNodeIDs(pa, axis, builder->leaf_nodes, builder->sort_stack, N);
 
         // Choose the current partition axis if it's smallest surface area is smallest so far:
         if (pa->smallest_surface_area < smallest_surface_area) {
@@ -179,7 +196,7 @@ u32 splitBVHNode(BVHNode *bvh_nodes, u32 *bvh_node_count, BVHBuilder *builder, B
     left_node->aabb  = chosen_partition_axis->left.aabbs[left_count-1];
     right_node->aabb = chosen_partition_axis->right.aabbs[left_count];
 
-    memcpy(leaf_ids, chosen_partition_axis->sorted_leaf_ids, byte_count);
+    for (u32 i = 0; i < N; i++) leaf_ids[i] = chosen_partition_axis->sorted_leaf_ids[i];
 
     return start + left_count;
 }
@@ -189,6 +206,8 @@ void buildBVH(BVH *bvh, BVHBuilder *builder, u32 N, u32 max_leaf_size) {
     initBVHNode(bvh->nodes);
 
     if (N <= max_leaf_size) {
+        bvh->nodes->aabb.min = getVec3Of(INFINITY);
+        bvh->nodes->aabb.max = getVec3Of(-INFINITY);
         BVHNode *builder_node = builder->leaf_nodes;
         for (u32 i = 0; i < N; i++, builder_node++) {
             bvh->leaf_ids[i] = builder_node->first_child_id;
@@ -201,7 +220,6 @@ void buildBVH(BVH *bvh, BVHBuilder *builder, u32 N, u32 max_leaf_size) {
         return;
     }
 
-    leaf_nodes = builder->leaf_nodes;
     u32 middle = splitBVHNode(bvh->nodes, &bvh->node_count, builder, bvh->nodes, 0, N);
     BuildIteration *stack = builder->build_iterations;
     u32 *leaf_id;
@@ -214,7 +232,7 @@ void buildBVH(BVH *bvh, BVHBuilder *builder, u32 N, u32 max_leaf_size) {
     stack[1].end = N;
     stack[1].node_id = 2;
 
-    int index = 1;
+    i32 index = 1;
     u32 leaf_count = 0;
     BuildIteration left, right;
     BVHNode *node;
@@ -300,6 +318,26 @@ void updateMeshBVH(Mesh *mesh, BVHBuilder *builder) {
     }
 
     buildBVH(&mesh->bvh, builder, mesh->triangle_count, MAX_TRIANGLES_PER_MESH_BVH_NODE);
+
+    mat3 m3;
+    Triangle *triangle = mesh->triangles;
+    u32 *triangle_id = mesh->bvh.leaf_ids;
+    for (u32 i = 0; i < mesh->triangle_count; i++, triangle++, triangle_id++) {
+        indices = mesh->vertex_position_indices + *triangle_id;
+
+        v1 = &mesh->vertex_positions[indices->ids[0]];
+        v2 = &mesh->vertex_positions[indices->ids[1]];
+        v3 = &mesh->vertex_positions[indices->ids[2]];
+
+        m3.X = subVec3(*v3, *v1);
+        m3.Y = subVec3(*v2, *v1);
+        m3.Z = crossVec3(m3.Y, m3.X);
+        m3.Z = normVec3(m3.Z);
+
+        triangle->world_to_tangent = invMat3(m3);
+        triangle->normal = m3.Z;
+        triangle->position = *v1;
+    }
 }
 
 void updateSceneBVH(Scene *scene, BVHBuilder *builder) {
@@ -307,9 +345,10 @@ void updateSceneBVH(Scene *scene, BVHBuilder *builder) {
     Primitive *primitive  = scene->primitives;
 
     for (u32 i = 0; i < scene->settings.primitives; i++, primitive++, leaf_node++) {
-        leaf_node->aabb = primitive->type == PrimitiveType_Mesh ?
-                scene->meshes[primitive->id].aabb :
-                getPrimitiveAABB(primitive);
+        if (primitive->type == PrimitiveType_Mesh)
+            leaf_node->aabb = scene->meshes[primitive->id].aabb;
+        else
+            leaf_node->aabb = getPrimitiveAABB(primitive);
         transformAABB(&leaf_node->aabb, primitive);
         leaf_node->first_child_id = builder->leaf_ids[i] = i;
     }

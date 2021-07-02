@@ -174,23 +174,19 @@ void initHUD(HUD *hud, HUDLine *lines, u32 line_count, f32 line_height, i32 posi
             lines[i].value_color = lines[i].title_color = White;
 }
 
-NavigationSettings getDefaultNavigationSettings() {
-    NavigationSettings navigation_settings;
-
-    navigation_settings.max_velocity  = NAVIGATION_DEFAULT__MAX_VELOCITY;
-    navigation_settings.acceleration  = NAVIGATION_DEFAULT__ACCELERATION;
-    navigation_settings.speeds.turn   = NAVIGATION_SPEED_DEFAULT__TURN;
-    navigation_settings.speeds.orient = NAVIGATION_SPEED_DEFAULT__ORIENT;
-    navigation_settings.speeds.orbit  = NAVIGATION_SPEED_DEFAULT__ORBIT;
-    navigation_settings.speeds.zoom   = NAVIGATION_SPEED_DEFAULT__ZOOM;
-    navigation_settings.speeds.dolly  = NAVIGATION_SPEED_DEFAULT__DOLLY;
-    navigation_settings.speeds.pan    = NAVIGATION_SPEED_DEFAULT__PAN;
-
-    return navigation_settings;
+void setDefaultNavigationSettings(NavigationSettings *settings) {
+    settings->max_velocity  = NAVIGATION_DEFAULT__MAX_VELOCITY;
+    settings->acceleration  = NAVIGATION_DEFAULT__ACCELERATION;
+    settings->speeds.turn   = NAVIGATION_SPEED_DEFAULT__TURN;
+    settings->speeds.orient = NAVIGATION_SPEED_DEFAULT__ORIENT;
+    settings->speeds.orbit  = NAVIGATION_SPEED_DEFAULT__ORBIT;
+    settings->speeds.zoom   = NAVIGATION_SPEED_DEFAULT__ZOOM;
+    settings->speeds.dolly  = NAVIGATION_SPEED_DEFAULT__DOLLY;
+    settings->speeds.pan    = NAVIGATION_SPEED_DEFAULT__PAN;
 }
 
-void initNavigation(Navigation *navigation, NavigationSettings navigation_settings) {
-    navigation->settings = navigation_settings;
+void initNavigation(Navigation *navigation, NavigationSettings *navigation_settings) {
+    navigation->settings = *navigation_settings;
 
     navigation->turned = false;
     navigation->moved = false;
@@ -207,51 +203,44 @@ void initNavigation(Navigation *navigation, NavigationSettings navigation_settin
     navigation->turn.left = false;
 }
 
-ViewportSettings getDefaultViewportSettings() {
-    ViewportSettings default_viewport_settings;
-
-    default_viewport_settings.near_clipping_plane_distance = VIEWPORT_DEFAULT__NEAR_CLIPPING_PLANE_DISTANCE;
-    default_viewport_settings.far_clipping_plane_distance  = VIEWPORT_DEFAULT__FAR_CLIPPING_PLANE_DISTANCE;
-    default_viewport_settings.hud_line_count = 0;
-    default_viewport_settings.show_hud = false;
-    default_viewport_settings.show_BVH = false;
-    default_viewport_settings.show_SSB = false;
-    default_viewport_settings.use_GPU  = false;
-    default_viewport_settings.render_mode = RenderMode_Beauty;
-
-    return default_viewport_settings;
+void setDefaultViewportSettings(ViewportSettings *settings) {
+    settings->near_clipping_plane_distance = VIEWPORT_DEFAULT__NEAR_CLIPPING_PLANE_DISTANCE;
+    settings->far_clipping_plane_distance  = VIEWPORT_DEFAULT__FAR_CLIPPING_PLANE_DISTANCE;
+    settings->hud_line_count = 0;
+    settings->hud_lines = null;
+    settings->show_hud = false;
+    settings->show_BVH = false;
+    settings->show_SSB = false;
+    settings->use_GPU  = false;
+    settings->render_mode = RenderMode_Beauty;
 }
 
 void initViewport(Viewport *viewport,
-                  ViewportSettings viewport_settings,
-                  NavigationSettings navigation_settings,
+                  ViewportSettings *viewport_settings,
+                  NavigationSettings *navigation_settings,
                   Camera *camera,
-                  PixelGrid *frame_buffer,
-                  HUDLine *hud_lines,
-                  u32 hud_line_count) {
+                  PixelGrid *frame_buffer) {
     viewport->camera = camera;
-    viewport->settings = viewport_settings;
+    viewport->settings = *viewport_settings;
     viewport->frame_buffer = frame_buffer;
     initBox(&viewport->default_box);
-    initHUD(&viewport->hud, hud_lines, hud_line_count, 1, 0, 0);
+    initHUD(&viewport->hud, viewport_settings->hud_lines, viewport_settings->hud_line_count, 1, 0, 0);
     initNavigation(&viewport->navigation, navigation_settings);
 }
 
-SceneSettings getDefaultSceneSettings() {
-    SceneSettings settings;
-
-    settings.cameras = 1;
-    settings.primitives = 0;
-    settings.materials = 0;
-    settings.point_lights = 0;
-    settings.quad_lights = 0;
-    settings.meshes = 0;
-    settings.curves = 0;
-    settings.boxes = 0;
-    settings.grids = 0;
-    settings.mesh_files = null;
-
-    return settings;
+void setDefaultSceneSettings(SceneSettings *settings) {
+    settings->cameras = 1;
+    settings->primitives = 0;
+    settings->materials = 0;
+    settings->point_lights = 0;
+    settings->quad_lights = 0;
+    settings->meshes = 0;
+    settings->curves = 0;
+    settings->boxes = 0;
+    settings->grids = 0;
+    settings->mesh_files = null;
+    settings->file.char_ptr = null;
+    settings->file.length = 0;
 }
 
 void initCurve(Curve *curve) {
@@ -318,9 +307,8 @@ void initBVH(BVH *bvh, u32 leaf_count, Memory *memory) {
     bvh->leaf_ids = allocateMemory(memory, sizeof(u32) * leaf_count);
 }
 
-void initSSB(SSB *ssb, u32 count, Memory *memory) {
-    ssb->bounds         = allocateMemory(memory, sizeof(Rect) * count);
-    ssb->view_positions = allocateMemory(memory, sizeof(vec3)     * count);
+u32 getBVHMemorySize(u32 leaf_count) {
+    return leaf_count * (sizeof(u32) + sizeof(BVHNode) * 2);
 }
 
 void initTrace(Trace *trace, Scene *scene, Memory *memory) {
@@ -338,7 +326,7 @@ void initTrace(Trace *trace, Scene *scene, Memory *memory) {
     } else
         trace->mesh_stack = null;
 
-    trace->scene_stack = allocateMemory(memory, sizeof(u32) * (scene->bvh.depth + 2));
+    trace->scene_stack = allocateMemory(memory, sizeof(u32) * scene->settings.primitives);
 }
 
 INLINE void prePrepRay(Ray *ray) {
@@ -348,24 +336,6 @@ INLINE void prePrepRay(Ray *ray) {
     ray->scaled_origin.x = -ray->origin.x * ray->direction_reciprocal.x;
     ray->scaled_origin.y = -ray->origin.y * ray->direction_reciprocal.y;
     ray->scaled_origin.z = -ray->origin.z * ray->direction_reciprocal.z;
-}
-
-void initMesh(Mesh *mesh, Memory *memory) {
-    mesh->triangles               = allocateMemory(memory, sizeof(Triangle)              * mesh->triangle_count);
-    mesh->vertex_position_indices = allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count);
-    mesh->vertex_positions        = allocateMemory(memory, sizeof(vec3)                  * mesh->vertex_count);
-    mesh->edge_vertex_indices     = allocateMemory(memory, sizeof(EdgeVertexIndices)     * mesh->edge_count);
-
-    if (mesh->uvs_count) {
-        mesh->vertex_uvs         = allocateMemory(memory, sizeof(vec2)                  * mesh->uvs_count);
-        mesh->vertex_uvs_indices = allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count);
-    }
-    if (mesh->normals_count) {
-        mesh->vertex_normals          = allocateMemory(memory, sizeof(vec3)                  * mesh->normals_count);
-        mesh->vertex_normal_indices   = allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count);
-    }
-
-    initBVH(&mesh->bvh, mesh->triangle_count, memory);
 }
 
 void initSelection(Selection *selection) {
