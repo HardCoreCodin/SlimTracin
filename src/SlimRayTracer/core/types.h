@@ -360,8 +360,6 @@ typedef struct Selection {
          world_offset,
          *world_position;
     Box box;
-    Ray ray, local_ray;
-    RayHit hit, local_hit;
     Primitive *primitive;
     enum BoxSide box_side;
     f32 object_distance;

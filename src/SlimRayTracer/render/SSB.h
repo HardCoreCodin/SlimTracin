@@ -134,9 +134,13 @@ bool computeSSB(Rect *bounds, vec3 *pos, f32 r, f32 focal_length, Dimensions *di
     return false;
 }
 
-INLINE void updatePrimitiveSSB(Scene *scene, Viewport *viewport, Primitive *primitive, vec3 *view_space_position) {
+INLINE void updatePrimitiveSSB(Scene *scene, Viewport *viewport, Primitive *primitive) {
     f32 radius, min_r, max_r;
     AABB *aabb;
+
+    xform3 *xform = &viewport->camera->transform;
+    vec3 view_space_position = subVec3(primitive->position, xform->position);
+    view_space_position = mulVec3Mat3(view_space_position, xform->rotation_matrix_inverted);
 
     switch (primitive->type) {
         case PrimitiveType_Quad       : radius = lengthVec3(  primitive->scale);             break;
@@ -155,22 +159,15 @@ INLINE void updatePrimitiveSSB(Scene *scene, Viewport *viewport, Primitive *prim
 
     primitive->flags &= ~IS_VISIBLE;
     if (computeSSB(&primitive->screen_bounds,
-                   view_space_position, radius,
+                   &view_space_position, radius,
                    viewport->camera->focal_length,
                    &viewport->frame_buffer->dimensions))
         primitive->flags |= IS_VISIBLE;
 }
 
 void updateSceneSSB(Scene *scene, Viewport *viewport) {
-    xform3 *xform = &viewport->camera->transform;
-    Primitive *primitive = scene->primitives;
-    vec3 view_space_position;
-
-    for (u32 i = 0; i < scene->settings.primitives; i++, primitive++) {
-        view_space_position = subVec3(primitive->position, xform->position);
-        view_space_position = mulVec3Mat3(view_space_position, xform->rotation_matrix_inverted);
-        updatePrimitiveSSB(scene, viewport, primitive, &view_space_position);
-    }
+    for (u32 i = 0; i < scene->settings.primitives; i++)
+        updatePrimitiveSSB(scene, viewport, scene->primitives + i);
 
     uploadSSB(scene);
 }

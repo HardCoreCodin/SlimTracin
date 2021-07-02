@@ -154,7 +154,8 @@ void onKeyChanged(u8 key, bool is_pressed) {
     if (key == 'D') move->right    = is_pressed;
 
     if (!is_pressed) {
-        ViewportSettings *settings = &app->viewport.settings;
+        Viewport *viewport = &app->viewport;
+        ViewportSettings *settings = &viewport->settings;
         if (key == app->controls.key_map.tab)
             settings->show_hud = !settings->show_hud;
 
@@ -164,8 +165,11 @@ void onKeyChanged(u8 key, bool is_pressed) {
             char *file = scene->settings.file.char_ptr;
             if (last_scene_io_is_save)
                 saveSceneToFile(  scene, file, platform);
-            else
+            else {
                 loadSceneFromFile(scene, file, platform);
+                updateSceneBVH(scene, &app->bvh_builder);
+                updateSceneSSB(scene, viewport);
+            }
             scene_io_time = app->time.getTicks();
         }
 
@@ -346,22 +350,22 @@ void setupScene(Scene *scene) {
 //        primitive->rotation = identity_orientation;
 //    }
 
-//    vec3 scale = getVec3Of(1);
-//    for (u8 i = 0; i < 6; i++) {
-//        primitive = scene->primitives + i;
-//        primitive->id = i;
-//        primitive->type = PrimitiveType_Quad;
-//        primitive->scale = scale;
-//        primitive->material_id = 0;
-//        primitive->position = getVec3Of(0);
-//        primitive->rotation = identity_orientation;
-//    }
-//
-//    // Bottom quad:
-//    primitive = scene->primitives;// + 12;
-//    primitive->scale.x = 40;
-//    primitive->scale.z = 40;
-//
+    vec3 scale = getVec3Of(1);
+    for (u8 i = 0; i < 1; i++) {
+        primitive = scene->primitives + i;
+        primitive->id = i;
+        primitive->type = PrimitiveType_Quad;
+        primitive->scale = scale;
+        primitive->material_id = 0;
+        primitive->position = getVec3Of(0);
+        primitive->rotation = identity_orientation;
+    }
+
+    // Bottom quad:
+    primitive = scene->primitives;// + 12;
+    primitive->scale.x = 40;
+    primitive->scale.z = 40;
+
 //    // Top quad:
 //    primitive++;
 //    primitive->scale.x = 40;
@@ -435,24 +439,24 @@ void setupScene(Scene *scene) {
     fill_light->intensity = 1.1f * 3;
 
     // Suzanne 1:
-//    primitive++;
-//    primitive->position.x = 10;
-//    primitive->position.z = 5;
-//    primitive->position.y = 4;
+    primitive++;
+    primitive->position.x = 10;
+    primitive->position.z = 5;
+    primitive->position.y = 4;
     primitive->type = PrimitiveType_Mesh;
     primitive->color = Magenta;
-//    primitive->scale.x = primitive->scale.y = primitive->scale.z = 5;
 
-//    primitive++;
-//    *primitive = *(primitive - 1);
-//    primitive->position.x = -10;
-//    primitive->color = Cyan;
-//
-//    primitive++;
-//    *primitive = *(primitive - 1);
-//    primitive->id = 1;
-//    primitive->position.z = 10;
-//    primitive->color = Blue;
+    primitive++;
+    *primitive = *(primitive - 1);
+    primitive->position.x = -10;
+    primitive->color = Cyan;
+
+    primitive++;
+    *primitive = *(primitive - 1);
+    primitive->id = 1;
+    primitive->position.z = 10;
+    primitive->position.y = 8;
+    primitive->color = Blue;
 }
 
 void onResize(u16 width, u16 height) {
@@ -464,21 +468,21 @@ char string_buffers[3][100];
 void initApp(Defaults *defaults) {
     String *scene_file = &defaults->settings.scene.file;
     String *mesh_file1 = &file_paths[0];
-//    String *mesh_file2 = &file_paths[1];
+    String *mesh_file2 = &file_paths[1];
 
     mesh_file1->char_ptr = string_buffers[0];
-//    mesh_file2->char_ptr = string_buffers[1];
+    mesh_file2->char_ptr = string_buffers[1];
     scene_file->char_ptr = string_buffers[2];
 
     u32 offset = getDirectoryLength(__FILE__);
-    mergeString(mesh_file1, __FILE__, "dragon.mesh", offset);
-//    mergeString(mesh_file2, __FILE__, "dragon.mesh",  offset);
+    mergeString(mesh_file1, __FILE__, "suzanne.mesh", offset);
+    mergeString(mesh_file2, __FILE__, "dragon.mesh",  offset);
     mergeString(scene_file, __FILE__, "this.scene",   offset);
-    defaults->settings.scene.meshes = 1;
+    defaults->settings.scene.meshes = 2;
     defaults->settings.scene.mesh_files = file_paths;
     defaults->settings.scene.point_lights = POINT_LIGHT_COUNT;
     defaults->settings.scene.materials    = MATERIAL_COUNT;
-    defaults->settings.scene.primitives   = 1;//PRIMITIVE_COUNT + 1;
+    defaults->settings.scene.primitives   = 4;//PRIMITIVE_COUNT + 3;
     defaults->settings.viewport.hud_line_count = 2;
 
     app->on.keyChanged               = onKeyChanged;

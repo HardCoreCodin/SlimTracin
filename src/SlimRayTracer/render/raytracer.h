@@ -28,8 +28,8 @@ void setBoxPrimitiveFromPrimitiveAndAABB(Primitive *box_primitive, Primitive *pr
 void drawMeshAccelerationStructure(Viewport *viewport, Mesh *mesh, Primitive *primitive, Primitive *box_primitive) {
     BVHNode *node = mesh->bvh.nodes;
     RGBA color;
-    u32 node_count = mesh->bvh.node_count > 200 ? 200 : mesh->bvh.node_count;
-    for (u8 node_id = 0; node_id < node_count; node_id++, node++) {
+    u32 node_count = mesh->bvh.node_count;
+    for (u32 node_id = 0; node_id < node_count; node_id++, node++) {
         color = Color(node->primitive_count ? Magenta : (node_id ? Green : Blue));
         setBoxPrimitiveFromPrimitiveAndAABB(box_primitive, primitive, &node->aabb);
         drawBox(viewport, color, &viewport->default_box, box_primitive, BOX__ALL_SIDES);

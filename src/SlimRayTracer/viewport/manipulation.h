@@ -1,56 +1,22 @@
 #pragma once
 
 #include "../core/types.h"
+#include "../core/init.h"
 #include "../math/vec3.h"
 #include "../math/quat.h"
 #include "../scene/primitive.h"
-//#include "../core/time.h"
-//#include "../scene/xform.h"
 #include "../scene/box.h"
-#include "../core/init.h"
+#include "../render/SSB.h"
 #include "../render/shaders/common.h"
 #include "../render/shaders/intersection/box.h"
-
-INLINE bool rayHitScene(Ray *ray, RayHit *local_hit, RayHit *hit, Scene *scene) {
-    bool current_found, found = false;
-    vec3 Ro, Rd;
-    Primitive hit_primitive, primitive;
-    for (u32 i = 0; i < scene->settings.primitives; i++) {
-        primitive = scene->primitives[i];
-        if (primitive.type == PrimitiveType_Mesh)
-            primitive.scale = mulVec3(primitive.scale, scene->meshes[primitive.id].aabb.max);
-
-        convertPositionAndDirectionToObjectSpace(ray->origin, ray->direction, &primitive, &Ro, &Rd);
-
-        current_found = hitBox(local_hit, &Ro, &Rd, ALL_FLAGS);
-        if (current_found) {
-            local_hit->position       = convertPositionToWorldSpace(local_hit->position, &primitive);
-            local_hit->distance_squared = squaredLengthVec3(subVec3(local_hit->position, ray->origin));
-            if (local_hit->distance_squared < hit->distance_squared) {
-                *hit = *local_hit;
-                hit->object_type = primitive.type;
-                hit->material_id = primitive.material_id;
-                hit->object_id = i;
-
-                hit_primitive = primitive;
-                found = true;
-            }
-        }
-    }
-
-    if (found) {
-        hit->distance = sqrtf(hit->distance_squared);
-        hit->normal = normVec3(convertDirectionToWorldSpace(hit->normal, &hit_primitive));
-    }
-
-    return found;
-}
+#include "../render/shaders/intersection/primitives.h"
 
 void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
     Mouse *mouse = &controls->mouse;
     Camera *camera = viewport->camera;
     Dimensions *dimensions = &viewport->frame_buffer->dimensions;
     Selection *selection = &scene->selection;
+    Trace *trace = &viewport->trace;
 
     setViewportProjectionPlane(viewport);
 
@@ -58,9 +24,10 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
     vec3 *cam_pos = &camera->transform.position;
     mat3 *rot     = &camera->transform.rotation_matrix;
     mat3 *inv_rot = &camera->transform.rotation_matrix_inverted;
-    RayHit *hit = &selection->hit;
-    Ray ray, *local_ray = &selection->local_ray;
+    RayHit *hit = &trace->closest_hit;
+    Ray ray, *local_ray = &trace->local_space_ray;
     Primitive primitive;
+
     selection->transformed = false;
 
     if (mouse->left_button.is_pressed) {
@@ -70,8 +37,17 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
             // Cast a ray onto the scene to find the closest object behind the hovered pixel:
             setRayFromCoords(&ray, mouse->pos, viewport);
 
-            hit->distance_squared = INFINITY;
-            if (rayHitScene(&ray, &selection->local_hit, hit, scene)) {
+            ray.direction_reciprocal = oneOverVec3(ray.direction);
+            trace->closest_hit.distance = trace->closest_hit.distance_squared = MAX_DISTANCE;
+            if (hitPrimitives(&ray,
+                              trace,
+                              scene,
+                              scene->bvh.leaf_ids,
+                              scene->settings.primitives,
+                              false,
+                              true,
+                              mouse->pos.x,
+                              mouse->pos.y)) {
                 // Detect if object scene->selection has changed:
                 selection->changed = (
                         selection->object_type != hit->object_type ||
@@ -115,7 +91,6 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                     primitive.scale = mulVec3(primitive.scale, scene->meshes[primitive.id].aabb.max);
 
                 convertPositionAndDirectionToObjectSpace(ray.origin, ray.direction, &primitive, &local_ray->origin, &local_ray->direction);
-
                 selection->box_side = hitBox(hit, &local_ray->origin, &local_ray->direction, ALL_FLAGS);
                 if (selection->box_side) {
                     selection->transformation_plane_center = convertPositionToWorldSpace(hit->normal,   &primitive);
@@ -152,8 +127,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                                 position      = convertPositionToObjectSpace(     position, &primitive);
                                 hit->position = convertPositionToObjectSpace(hit->position, &primitive);
 
-                                selection->primitive->scale = mulVec3(selection->object_scale,
-                                                                             mulVec3(hit->position, oneOverVec3(position)));
+                                selection->primitive->scale = mulVec3(selection->object_scale, mulVec3(hit->position, oneOverVec3(position)));
                                 selection->primitive->flags |= IS_SCALED | IS_SCALED_NON_UNIFORMLY;
                             } else if (mouse->right_button.is_pressed) {
                                 vec3 v1 = subVec3(hit->position,
@@ -168,6 +142,8 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                                 selection->primitive->rotation = normQuat(selection->primitive->rotation);
                                 selection->primitive->flags |= IS_ROTATED;
                             }
+
+                            updatePrimitiveSSB(scene, viewport, selection->primitive);
                         }
                     }
                 }
@@ -197,6 +173,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                     selection->primitive->flags |= IS_TRANSLATED;
 
                 selection->transformed = true;
+                updatePrimitiveSSB(scene, viewport, selection->primitive);
             }
         }
     }

@@ -116,34 +116,6 @@ void loadSceneFromFile(Scene *scene, char* file_path, Platform *platform) {
         for (u32 i = 0; i < scene->settings.curves; i++)
             platform->readFromFile(scene->curves + i, sizeof(Curve), file);
 
-    if (scene->meshes) {
-        Mesh *mesh = scene->meshes;
-        for (u32 i = 0; i < scene->settings.meshes; i++, mesh++) {
-            platform->readFromFile(&mesh->aabb,           sizeof(AABB), file);
-            platform->readFromFile(&mesh->vertex_count,   sizeof(u32),  file);
-            platform->readFromFile(&mesh->triangle_count, sizeof(u32),  file);
-            platform->readFromFile(&mesh->edge_count,     sizeof(u32),  file);
-            platform->readFromFile(&mesh->uvs_count,      sizeof(u32),  file);
-            platform->readFromFile(&mesh->normals_count,  sizeof(u32),  file);
-            platform->readFromFile(&mesh->bvh.node_count, sizeof(u32),  file);
-            platform->readFromFile(&mesh->bvh.depth,      sizeof(u32),  file);
-            platform->readFromFile(mesh->bvh.nodes,                    sizeof(BVHNode)               * mesh->bvh.node_count, file);
-            platform->readFromFile(mesh->bvh.leaf_ids,                 sizeof(u32)                   * mesh->triangle_count, file);
-            platform->readFromFile(mesh->triangles,                    sizeof(Triangle)              * mesh->triangle_count, file);
-            platform->readFromFile(mesh->vertex_positions,             sizeof(vec3)                  * mesh->vertex_count,   file);
-            platform->readFromFile(mesh->vertex_position_indices,      sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
-            platform->readFromFile(mesh->edge_vertex_indices,          sizeof(EdgeVertexIndices)     * mesh->edge_count,     file);
-            if (mesh->uvs_count) {
-                platform->readFromFile(mesh->vertex_uvs,               sizeof(vec2)                  * mesh->uvs_count,      file);
-                platform->readFromFile(mesh->vertex_uvs_indices,       sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
-            }
-            if (mesh->normals_count) {
-                platform->readFromFile(mesh->vertex_normals,                sizeof(vec3)                  * mesh->normals_count,  file);
-                platform->readFromFile(mesh->vertex_normal_indices,         sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
-            }
-        };
-    }
-
     platform->closeFile(file);
 }
 
@@ -171,30 +143,6 @@ void saveSceneToFile(Scene *scene, char* file_path, Platform *platform) {
     if (scene->curves)
         for (u32 i = 0; i < scene->settings.curves; i++)
             platform->writeToFile(scene->curves + i, sizeof(Curve), file);
-
-    if (scene->meshes) {
-        Mesh *mesh = scene->meshes;
-        for (u32 i = 0; i < scene->settings.meshes; i++, mesh++) {
-            platform->writeToFile(&mesh->aabb,           sizeof(AABB), file);
-            platform->writeToFile(&mesh->vertex_count,   sizeof(u32),  file);
-            platform->writeToFile(&mesh->triangle_count, sizeof(u32),  file);
-            platform->writeToFile(&mesh->edge_count,     sizeof(u32),  file);
-            platform->writeToFile(&mesh->uvs_count,      sizeof(u32),  file);
-            platform->writeToFile(&mesh->normals_count,  sizeof(u32),  file);
-
-            platform->writeToFile(mesh->vertex_positions,        sizeof(vec3)                  * mesh->vertex_count,   file);
-            platform->writeToFile(mesh->vertex_position_indices, sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
-            platform->writeToFile(mesh->edge_vertex_indices,     sizeof(EdgeVertexIndices)     * mesh->edge_count,     file);
-            if (mesh->uvs_count) {
-                platform->writeToFile(mesh->vertex_uvs,          sizeof(vec2)                  * mesh->uvs_count,      file);
-                platform->writeToFile(mesh->vertex_uvs_indices,  sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
-            }
-            if (mesh->normals_count) {
-                platform->writeToFile(mesh->vertex_normals,        sizeof(vec3)                  * mesh->normals_count,  file);
-                platform->writeToFile(mesh->vertex_normal_indices, sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
-            }
-        };
-    }
 
     platform->closeFile(file);
 }
