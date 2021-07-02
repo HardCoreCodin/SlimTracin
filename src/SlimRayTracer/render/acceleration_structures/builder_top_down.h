@@ -334,9 +334,14 @@ void updateMeshBVH(Mesh *mesh, BVHBuilder *builder) {
         m3.Z = crossVec3(m3.Y, m3.X);
         m3.Z = normVec3(m3.Z);
 
+        indices = mesh->vertex_normal_indices + *triangle_id;
+
         triangle->world_to_tangent = invMat3(m3);
         triangle->normal = m3.Z;
         triangle->position = *v1;
+        triangle->vertex_normals[0] = mesh->vertex_normals[indices->ids[0]];
+        triangle->vertex_normals[1] = mesh->vertex_normals[indices->ids[1]];
+        triangle->vertex_normals[2] = mesh->vertex_normals[indices->ids[2]];
     }
 }
 

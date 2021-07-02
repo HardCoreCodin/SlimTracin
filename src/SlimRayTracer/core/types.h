@@ -335,6 +335,7 @@ typedef struct QuadLight {
 typedef struct Triangle {
     mat3 world_to_tangent;
     vec3 position, normal;
+    vec3 vertex_normals[3];
 } Triangle;
 typedef struct EdgeVertexIndices { u32 from, to; } EdgeVertexIndices;
 typedef struct TriangleVertexIndices { u32 ids[3]; } TriangleVertexIndices;
