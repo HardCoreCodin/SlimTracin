@@ -36,7 +36,7 @@ void drawMeshAccelerationStructure(Viewport *viewport, Mesh *mesh, Primitive *pr
     }
 }
 
-void drawAccelerationStructures(Scene *scene, Viewport *viewport) {
+void drawBVH(Scene *scene, Viewport *viewport) {
     static Primitive box_primitive;
     BVHNode *node = scene->bvh.nodes;
     Primitive *primitive;
@@ -71,10 +71,12 @@ void drawAccelerationStructures(Scene *scene, Viewport *viewport) {
     }
 }
 
-void renderOnCPU(Scene *scene, Viewport *viewport) {
+void rayTrace(Scene *scene, Viewport *viewport) {
     PixelGrid *frame_buffer = viewport->frame_buffer;
     Pixel* pixel = frame_buffer->pixels;
     Dimensions *dim = &frame_buffer->dimensions;
+
+    setViewportProjectionPlane(viewport);
 
     vec3 ray_origin = viewport->camera->transform.position;
     vec3 start      = viewport->projection_plane.start;
@@ -101,7 +103,7 @@ void renderOnCPU(Scene *scene, Viewport *viewport) {
 
             if (hitPrimitives(&ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y)) {
                 switch (mode) {
-                    case RenderMode_Beauty    : color = shadeSurface(trace, scene, ray.direction, getVec3Of(0)); break;
+                    case RenderMode_Beauty    : color = shadeSurface2(&ray, trace, scene); break;
                     case RenderMode_Depth     : color = shadeDepth(trace->closest_hit.distance);          break;
                     case RenderMode_Normals   : color = shadeDirection(trace->closest_hit.normal);        break;
                     case RenderMode_UVs       : color = shadeUV(trace->closest_hit.uv);                   break;

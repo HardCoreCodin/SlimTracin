@@ -327,6 +327,7 @@ void initTrace(Trace *trace, Scene *scene, Memory *memory) {
         trace->mesh_stack = null;
 
     trace->scene_stack = allocateMemory(memory, sizeof(u32) * scene->settings.primitives);
+    trace->depth = 2;
 }
 
 INLINE void prePrepRay(Ray *ray) {

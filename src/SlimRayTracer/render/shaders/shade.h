@@ -13,7 +13,7 @@ INLINE void renderBeauty(Ray *ray, Trace *trace, Scene *scene, u16 x, u16 y, Pix
 //    shadeReflection(scene, bvh_nodes, &tracer->masks, ray->hit.material_id, ray->direction,  &ray->hit.position, &ray->hit.normal, 0, &color);
 //    if (traceSecondaryRay(ray, trace, scene, ray_tracer_args.simple_bvh_nodes))
     if (tracePrimaryRay(ray, trace, scene, x, y))
-        color = shadeSurface(trace, scene, ray->direction, color);
+        color = shadeSurface(ray, trace, scene, color);
 
     setPixelBakedToneMappedColor(pixel, &color);
 }

@@ -47,25 +47,22 @@ void onDoubleClick(MouseButton *mouse_button) {
 }
 void drawSceneToViewport(Scene *scene, Viewport *viewport) {
     fillPixelGrid(viewport->frame_buffer, Color(Black));
-    setViewportProjectionPlane(viewport);
-    if (viewport->settings.use_GPU)
-        renderOnGPU(scene, viewport);
-    else
-        renderOnCPU(scene, viewport);
-    if (viewport->settings.show_BVH)
-        drawAccelerationStructures(scene, viewport);
-    if (viewport->settings.show_SSB)
-        drawSSB(scene, viewport);
+    rayTrace(scene, viewport);
+    if (viewport->settings.show_BVH) drawBVH(scene, viewport);
+    if (viewport->settings.show_SSB) drawSSB(scene, viewport);
 }
 void setupViewport(Viewport *viewport) {
     HUD *hud = &viewport->hud;
     hud->line_height = 1.2f;
     hud->position.x = hud->position.y = 10;
     setCountersInHUD(hud, &app->time.timers.update);
+    printNumberIntoString(1, &hud->lines[2].value);
     setString(&hud->lines[0].title, "Fps    : ");
     setString(&hud->lines[1].title, "mic-s/f: ");
-    hud->lines[0].title_color = hud->lines[1].title_color = Green;
-    hud->lines[0].value_color = hud->lines[1].value_color = Green;
+    setString(&hud->lines[2].title, "bounces: ");
+    setString(&hud->lines[3].title, "matr-id: ");
+    hud->lines[0].title_color = hud->lines[1].title_color = hud->lines[2].title_color = hud->lines[3].title_color = Green;
+    hud->lines[0].value_color = hud->lines[1].value_color = hud->lines[2].value_color = hud->lines[3].value_color = Green;
 
     xform3 *camera_xform = &viewport->camera->transform;
     camera_xform->position.y = 7;
@@ -78,7 +75,7 @@ void updateViewport(Viewport *viewport, Mouse *mouse) {
     if (mouse->is_captured) {
         if (mouse->moved)         orientViewport(viewport, mouse);
         if (mouse->wheel_scrolled)  zoomViewport(viewport, mouse);
-    } else {
+    } else if (!(mouse->wheel_scrolled && app->controls.is_pressed.shift)) {
         if (mouse->wheel_scrolled) dollyViewport(viewport, mouse);
         if (mouse->moved) {
             if (mouse->middle_button.is_pressed)
@@ -120,6 +117,8 @@ void updateAndRender() {
 
     if (viewport->settings.show_hud) {
         setCountersInHUD(&viewport->hud, timer);
+        printNumberIntoString((i32)viewport->trace.depth, &viewport->hud.lines[2].value);
+        printNumberIntoString(scene->selection.primitive ? scene->selection.primitive->material_id : 0, &viewport->hud.lines[3].value);
         drawHUD(viewport->frame_buffer, &viewport->hud);
     }
     f64 now = (f64)app->time.getTicks();
@@ -211,9 +210,7 @@ void setupScene(Scene *scene) {
     refractive_material->uses = LAMBERT | BLINN | REFRACTION;
     reflective_refractive_material->uses = BLINN | REFLECTION | REFRACTION;
 
-    quat identity_orientation;
-    identity_orientation.axis = getVec3Of(0);
-    identity_orientation.amount = 1;
+    quat identity_orientation = getIdentityQuaternion();
 
     Material* material = scene->materials;
     for (int i = 0; i < MATERIAL_COUNT; i++, material++) {
@@ -224,6 +221,10 @@ void setupScene(Scene *scene) {
         material->n2_over_n1 = IOR_GLASS / IOR_AIR;
     }
 
+    phong_material->shininess = 2;
+    blinn_material->shininess = 3;
+    reflective_material->diffuse = getVec3Of(0.1f);
+    reflective_material->specular = getVec3Of(0.9f);
     phong_material->diffuse.z = 0.4f;
     diffuse_material->diffuse.x = 0.3f;
     diffuse_material->diffuse.z = 0.2f;
@@ -483,7 +484,7 @@ void initApp(Defaults *defaults) {
     defaults->settings.scene.point_lights = POINT_LIGHT_COUNT;
     defaults->settings.scene.materials    = MATERIAL_COUNT;
     defaults->settings.scene.primitives   = 4;//PRIMITIVE_COUNT + 3;
-    defaults->settings.viewport.hud_line_count = 2;
+    defaults->settings.viewport.hud_line_count = 4;
 
     app->on.keyChanged               = onKeyChanged;
     app->on.mouseButtonDown          = onButtonDown;

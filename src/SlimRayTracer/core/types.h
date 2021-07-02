@@ -207,7 +207,7 @@ typedef struct RayHit {
 typedef struct Trace {
     RayHit closest_hit, closest_mesh_hit, current_hit, *quad_light_hits;
     Ray local_space_ray;
-    u32 *scene_stack, *mesh_stack;
+    u32 depth, *scene_stack, *mesh_stack;
 } Trace;
 
 // BVH:

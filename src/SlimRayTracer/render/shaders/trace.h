@@ -82,28 +82,11 @@ INLINE bool tracePrimaryRay(Ray *ray, Trace *trace, Scene *scene, u16 x, u16 y) 
     return hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y);
 }
 
-INLINE bool traceSecondaryRay(Ray *ray, Trace *trace, Scene *scene) {
-    trace->closest_hit.distance = trace->closest_hit.distance_squared = MAX_DISTANCE;
-    return traceScene(ray, trace, scene, false);
-}
-
 bool inShadow(Ray *ray, Trace *trace, Scene *scene) {
-    return traceScene(ray, trace, scene, true);
-}
-
-INLINE bool inShadow2(Ray *ray, Trace *trace, Scene *scene) {
-//    if (scene->settings.quad_lights) {
-//        bool quad_light_found = hitClosestQuadLight(ray, trace, scene);
-//        if (!quad_light_found || trace->closest_hit.from_behind) return true;
-//    }
     return traceScene(ray, trace, scene, true);
 }
 
 INLINE bool traceRay(Ray *ray, Trace *trace, Scene *scene) {
     trace->closest_hit.distance = trace->closest_hit.distance_squared = INFINITY;
-    trace->closest_hit.from_behind = false;
-    bool found = false;//scene->settings.quad_lights ? hitClosestQuadLight(ray, trace, scene) : false;
-    found |= traceScene(ray, trace, scene, false);
-
-    return found;// && !trace->closest_hit.from_behind;
+    return traceScene(ray, trace, scene, false);
 }
