@@ -51,9 +51,10 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
                     trace->closest_mesh_hit.distance = lengthVec3(subVec3(convertPositionToObjectSpace(closest_hit->position, primitive), *Ro));
 
                 prePrepRay(&trace->local_space_ray);
-                current_found = any_hit ?
-                        traceMeshAny(trace, scene->meshes + primitive->id) :
-                        traceMeshAll(trace, scene->meshes + primitive->id);
+                current_found = traceMesh(trace, scene->meshes + primitive->id, any_hit);
+//                current_found = any_hit ?
+//                        traceMeshAny(trace, scene->meshes + primitive->id) :
+//                        traceMeshAll(trace, scene->meshes + primitive->id);
                 if (current_found) *hit = trace->closest_mesh_hit;
                 break;
             default:

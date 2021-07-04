@@ -10,6 +10,16 @@
 #include "./shaders/closest_hit/surface.h"
 #include "./SSB.h"
 
+void setRenderModeString(enum RenderMode mode, String *string) {
+    switch (mode) {
+        case RenderMode_Beauty : setString(string, (char*)"Beauty");  break;
+        case RenderMode_Normals: setString(string, (char*)"Normals"); break;
+        case RenderMode_Depth  : setString(string, (char*)"Depth");   break;
+        case RenderMode_UVs    : setString(string, (char*)"UVs");     break;
+        default: break;
+    }
+}
+
 void setBoxPrimitiveFromAABB(Primitive *box_primitive, AABB *aabb) {
     box_primitive->rotation = getIdentityQuaternion();
     box_primitive->position = scaleVec3(addVec3(aabb->min, aabb->max), 0.5f);
@@ -71,9 +81,8 @@ void drawBVH(Scene *scene, Viewport *viewport) {
     }
 }
 
-void updateScene(Scene *scene, Viewport *viewport, BVHBuilder *builder) {
-    updateSceneBVH(scene, builder);
-    uploadSceneBVH(scene);
+void updateScene(Scene *scene, Viewport *viewport) {
+    updateSceneBVH(scene, &app->bvh_builder);
     updateSceneSSB(scene, viewport);
 }
 
@@ -94,12 +103,10 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
         pixel->color = Color(Black);
 }
 
-void renderOnCPU(Scene *scene, Viewport *viewport) {
+void renderSceneOnCPU(Scene *scene, Viewport *viewport) {
     PixelGrid *frame_buffer = viewport->frame_buffer;
     Pixel* pixel = frame_buffer->pixels;
     Dimensions *dim = &frame_buffer->dimensions;
-
-    setViewportProjectionPlane(viewport);
 
     vec3 ray_origin = viewport->camera->transform.position;
     vec3 start      = viewport->projection_plane.start;
@@ -129,3 +136,115 @@ void renderOnCPU(Scene *scene, Viewport *viewport) {
         current = start = addVec3(start, down);
     }
 }
+
+#ifdef __CUDACC__
+
+__global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode, vec3 camera_position, Trace trace,
+                         u16 width,
+                         u32 pixel_count,
+
+                         Scene scene,
+                         u32        *scene_bvh_leaf_ids,
+                         BVHNode    *scene_bvh_nodes,
+                         BVHNode    *mesh_bvh_nodes,
+                         Mesh       *meshes,
+                         Triangle   *mesh_triangles,
+                         PointLight *point_lights,
+                         QuadLight  *quad_lights,
+                         Material   *materials,
+                         Primitive  *primitives,
+
+                         const u32 *mesh_bvh_node_counts,
+                         const u32 *mesh_triangle_counts
+) {
+    u32 i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i >= pixel_count)
+        return;
+
+    Pixel *pixel = (Pixel *)&d_pixels[i];
+
+    u16 x = i % width;
+    u16 y = i / width;
+
+    Ray ray;
+    ray.origin = camera_position;
+    ray.direction = normVec3(scaleAddVec3(projection_plane.down, y, scaleAddVec3(projection_plane.right, x, projection_plane.start)));
+
+    scene.point_lights = point_lights;
+    scene.quad_lights  = quad_lights;
+    scene.materials    = materials;
+    scene.primitives   = primitives;
+    scene.meshes       = meshes;
+    scene.bvh.nodes    = scene_bvh_nodes;
+    scene.bvh.leaf_ids = scene_bvh_leaf_ids;
+
+    u32 scene_stack[6], mesh_stack[5];
+    trace.mesh_stack  = mesh_stack;
+    trace.scene_stack = scene_stack;
+
+    Mesh *mesh = meshes;
+    u32 nodes_offset = 0;
+    u32 triangles_offset = 0;
+    for (u32 m = 0; m < scene.settings.meshes; m++, mesh++) {
+        mesh->bvh.node_count = mesh_bvh_node_counts[m];
+        mesh->triangle_count = mesh_triangle_counts[m];
+        mesh->normals_count  = mesh_triangle_counts[m];
+        mesh->triangles      = mesh_triangles + triangles_offset;
+        mesh->bvh.nodes      = mesh_bvh_nodes + nodes_offset;
+
+        nodes_offset        += mesh->bvh.node_count;
+        triangles_offset    += mesh->triangle_count;
+    }
+
+    ray.direction_reciprocal = oneOverVec3(ray.direction);
+    trace.closest_hit.distance = trace.closest_hit.distance_squared = INFINITY;
+
+    rayTrace(&ray, &trace, &scene, mode, x, y, pixel);
+}
+
+void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
+    Dimensions *dim = &viewport->frame_buffer->dimensions;
+    u32 pixel_count = dim->width_times_height;
+    u16 threads = 256;
+    u16 blocks  = pixel_count / threads;
+    if (pixel_count < threads) {
+        threads = pixel_count;
+        blocks = 1;
+    } else if (pixel_count % threads)
+        blocks++;
+
+    d_render<<<blocks, threads>>>(
+            viewport->projection_plane, viewport->settings.render_mode, viewport->camera->transform.position, viewport->trace,
+
+            dim->width,
+            pixel_count,
+
+            *scene,
+            d_scene_bvh_leaf_ids,
+            d_scene_bvh_nodes,
+            d_mesh_bvh_nodes,
+            d_meshes,
+            d_triangles,
+            d_point_lights,
+            d_quad_lights,
+            d_materials,
+            d_primitives,
+
+            d_mesh_bvh_node_counts,
+            d_mesh_triangle_counts);
+
+    checkErrors()
+    downloadN(d_pixels, (u32*)viewport->frame_buffer->pixels, dim->width_times_height)
+}
+
+void renderScene(Scene *scene, Viewport *viewport) {
+    setViewportProjectionPlane(viewport);
+    if (viewport->settings.use_GPU) renderSceneOnGPU(scene, viewport);
+    else                            renderSceneOnCPU(scene, viewport);
+}
+#else
+void renderScene(Scene *scene, Viewport *viewport) {
+    setViewportProjectionPlane(viewport);
+    renderSceneOnCPU(scene, viewport);
+}
+#endif

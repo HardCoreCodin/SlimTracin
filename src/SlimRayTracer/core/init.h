@@ -6,6 +6,105 @@
 #include "../math/quat.h"
 #include "../scene/primitive.h"
 
+#ifdef __CUDACC__
+
+#define checkErrors() gpuErrchk(cudaPeekAtLastError())
+#define uploadNto(cpu_ptr, gpu_ptr, N, offset) gpuErrchk(cudaMemcpy(&((gpu_ptr)[(offset)]), (cpu_ptr), sizeof((cpu_ptr)[0]) * (N), cudaMemcpyHostToDevice))
+#define uploadN(  cpu_ptr, gpu_ptr, N        ) gpuErrchk(cudaMemcpy(&((gpu_ptr)[0])       , (cpu_ptr), sizeof((cpu_ptr)[0]) * (N), cudaMemcpyHostToDevice))
+#define downloadN(gpu_ptr, cpu_ptr, N)         gpuErrchk(cudaMemcpyFromSymbol(cpu_ptr     , (gpu_ptr), sizeof((cpu_ptr)[0]) * (N), 0, cudaMemcpyDeviceToHost))
+
+__device__   u32 d_pixels[MAX_WIDTH * MAX_HEIGHT];
+
+PointLight *d_point_lights;
+QuadLight  *d_quad_lights;
+Material   *d_materials;
+Primitive  *d_primitives;
+Mesh       *d_meshes;
+Triangle   *d_triangles;
+u32        *d_scene_bvh_leaf_ids;
+BVHNode    *d_scene_bvh_nodes;
+BVHNode    *d_mesh_bvh_nodes;
+
+u32 *d_mesh_bvh_node_counts,
+    *d_mesh_triangle_counts;
+
+void allocateDeviceScene(Scene *scene) {
+    u32 total_triangles = 0;
+    if (scene->settings.point_lights) gpuErrchk(cudaMalloc(&d_point_lights, sizeof(PointLight) * scene->settings.point_lights))
+    if (scene->settings.quad_lights)  gpuErrchk(cudaMalloc(&d_quad_lights,  sizeof(QuadLight)  * scene->settings.quad_lights))
+    if (scene->settings.primitives)   gpuErrchk(cudaMalloc(&d_primitives,   sizeof(Primitive)  * scene->settings.primitives))
+    if (scene->settings.meshes) {
+        for (u32 i = 0; i < scene->settings.meshes; i++)
+            total_triangles += scene->meshes[i].triangle_count;
+
+        gpuErrchk(cudaMalloc(&d_meshes,    sizeof(Mesh)     * scene->settings.meshes))
+        gpuErrchk(cudaMalloc(&d_triangles, sizeof(Triangle) * total_triangles))
+
+        gpuErrchk(cudaMalloc(&d_mesh_bvh_node_counts, sizeof(u32) * scene->settings.meshes))
+        gpuErrchk(cudaMalloc(&d_mesh_triangle_counts, sizeof(u32) * scene->settings.meshes))
+    }
+
+    gpuErrchk(cudaMalloc(&d_materials,          sizeof(Material) * scene->settings.materials))
+    gpuErrchk(cudaMalloc(&d_scene_bvh_leaf_ids, sizeof(u32)      * scene->settings.primitives))
+    gpuErrchk(cudaMalloc(&d_scene_bvh_nodes,    sizeof(BVHNode)  * scene->settings.primitives * 2))
+    gpuErrchk(cudaMalloc(&d_mesh_bvh_nodes,     sizeof(BVHNode)  * total_triangles * 2))
+}
+
+void uploadPrimitives(Scene *scene) {
+    uploadN(scene->primitives, d_primitives, scene->settings.primitives)
+}
+
+void uploadLights(Scene *scene) {
+    if (scene->settings.point_lights) uploadN( scene->point_lights, d_point_lights, scene->settings.point_lights)
+    if (scene->settings.quad_lights)  uploadN( scene->quad_lights,  d_quad_lights,  scene->settings.quad_lights)
+}
+
+void uploadScene(Scene *scene) {
+    uploadLights(scene);
+    uploadPrimitives(scene);
+    uploadN( scene->materials, d_materials,scene->settings.materials)
+}
+
+void uploadSceneBVH(Scene *scene) {
+    uploadN(scene->bvh.nodes,    d_scene_bvh_nodes,   scene->bvh.node_count)
+    uploadN(scene->bvh.leaf_ids, d_scene_bvh_leaf_ids,scene->settings.primitives)
+}
+
+void uploadMeshBVHs(Scene *scene) {
+    Mesh *mesh = scene->meshes;
+    u32 nodes_offset = 0;
+    u32 triangles_offset = 0;
+    for (u32 i = 0; i < scene->settings.meshes; i++, mesh++) {
+        uploadNto(mesh->bvh.nodes, d_mesh_bvh_nodes, mesh->bvh.node_count, nodes_offset)
+        uploadNto(mesh->triangles, d_triangles,      mesh->triangle_count, triangles_offset)
+        nodes_offset        += mesh->bvh.node_count;
+        triangles_offset    += mesh->triangle_count;
+    }
+
+    uploadN(scene->mesh_bvh_node_counts, d_mesh_bvh_node_counts, scene->settings.meshes)
+    uploadN(scene->mesh_triangle_counts, d_mesh_triangle_counts, scene->settings.meshes)
+}
+#define USE_GPU_BY_DEFAULT true
+#else
+#define USE_GPU_BY_DEFAULT false
+
+    void uploadLights(Scene *scene) {}
+    void uploadPrimitives(Scene *scene) {}
+    void uploadScene(Scene *scene) {}
+    void allocateDeviceScene(Scene *scene) {}
+    void uploadMeshBVHs(Scene *scene) {}
+    void uploadSceneBVH(Scene *scene) {}
+    void renderOnGPU(Scene *scene, Viewport *viewport) {}
+#endif
+
+void initNumberString(NumberString *number_string) {
+    number_string->string.char_ptr = number_string->_buffer;
+    number_string->string.length = 1;
+    number_string->_buffer[11] = 0;
+    for (u8 i = 0; i < 11; i++)
+        number_string->_buffer[i] = ' ';
+}
+
 void initMouse(Mouse *mouse) {
     mouse->is_captured = false;
 
@@ -94,6 +193,35 @@ void fillPixelGrid(PixelGrid *pixel_grid, RGBA color) {
         pixel_grid->pixels[i].color = color;
 }
 
+void setBoxEdgesFromVertices(BoxEdges *edges, BoxVertices *vertices) {
+    edges->sides.front_top.from    = vertices->corners.front_top_left;
+    edges->sides.front_top.to      = vertices->corners.front_top_right;
+    edges->sides.front_bottom.from = vertices->corners.front_bottom_left;
+    edges->sides.front_bottom.to   = vertices->corners.front_bottom_right;
+    edges->sides.front_left.from   = vertices->corners.front_bottom_left;
+    edges->sides.front_left.to     = vertices->corners.front_top_left;
+    edges->sides.front_right.from  = vertices->corners.front_bottom_right;
+    edges->sides.front_right.to    = vertices->corners.front_top_right;
+
+    edges->sides.back_top.from     = vertices->corners.back_top_left;
+    edges->sides.back_top.to       = vertices->corners.back_top_right;
+    edges->sides.back_bottom.from  = vertices->corners.back_bottom_left;
+    edges->sides.back_bottom.to    = vertices->corners.back_bottom_right;
+    edges->sides.back_left.from    = vertices->corners.back_bottom_left;
+    edges->sides.back_left.to      = vertices->corners.back_top_left;
+    edges->sides.back_right.from   = vertices->corners.back_bottom_right;
+    edges->sides.back_right.to     = vertices->corners.back_top_right;
+
+    edges->sides.left_bottom.from  = vertices->corners.front_bottom_left;
+    edges->sides.left_bottom.to    = vertices->corners.back_bottom_left;
+    edges->sides.left_top.from     = vertices->corners.front_top_left;
+    edges->sides.left_top.to       = vertices->corners.back_top_left;
+    edges->sides.right_bottom.from = vertices->corners.front_bottom_right;
+    edges->sides.right_bottom.to   = vertices->corners.back_bottom_right;
+    edges->sides.right_top.from    = vertices->corners.front_top_right;
+    edges->sides.right_top.to      = vertices->corners.back_top_right;
+}
+
 void initBox(Box *box) {
     box->vertices.corners.front_top_left.x    = -1;
     box->vertices.corners.back_top_left.x     = -1;
@@ -162,16 +290,24 @@ void initCamera(Camera* camera) {
     initXform3(&camera->transform);
 }
 
-void initHUD(HUD *hud, HUDLine *lines, u32 line_count, f32 line_height, i32 position_x, i32 position_y) {
+void initHUD(HUD *hud, HUDLine *lines, u32 line_count, f32 line_height, enum ColorID default_color, i32 position_x, i32 position_y) {
     hud->lines = lines;
     hud->line_count = line_count;
     hud->line_height = line_height;
     hud->position.x = position_x;
     hud->position.y = position_y;
 
-    if (lines)
-        for (u32 i = 0; i < line_count; i++)
-            lines[i].value_color = lines[i].title_color = White;
+    if (lines) {
+        HUDLine *line = lines;
+        for (u32 i = 0; i < line_count; i++, line++) {
+            line->use_alternate = null;
+            line->invert_alternate_use = false;
+            line->title_color = line->value_color = line->alternate_value_color = default_color;
+            initNumberString(&line->value);
+            line->title.char_ptr = line->alternate_value.char_ptr = (char*)("");
+            line->title.length = line->alternate_value.length = 0;
+        }
+    }
 }
 
 void setDefaultNavigationSettings(NavigationSettings *settings) {
@@ -206,12 +342,13 @@ void initNavigation(Navigation *navigation, NavigationSettings *navigation_setti
 void setDefaultViewportSettings(ViewportSettings *settings) {
     settings->near_clipping_plane_distance = VIEWPORT_DEFAULT__NEAR_CLIPPING_PLANE_DISTANCE;
     settings->far_clipping_plane_distance  = VIEWPORT_DEFAULT__FAR_CLIPPING_PLANE_DISTANCE;
+    settings->hud_default_color = White;
     settings->hud_line_count = 0;
     settings->hud_lines = null;
     settings->show_hud = false;
     settings->show_BVH = false;
     settings->show_SSB = false;
-    settings->use_GPU  = false;
+    settings->use_GPU  = USE_GPU_BY_DEFAULT;
     settings->render_mode = RenderMode_Beauty;
 }
 
@@ -224,7 +361,7 @@ void initViewport(Viewport *viewport,
     viewport->settings = *viewport_settings;
     viewport->frame_buffer = frame_buffer;
     initBox(&viewport->default_box);
-    initHUD(&viewport->hud, viewport_settings->hud_lines, viewport_settings->hud_line_count, 1, 0, 0);
+    initHUD(&viewport->hud, viewport_settings->hud_lines, viewport_settings->hud_line_count, 1, viewport_settings->hud_default_color, 0, 0);
     initNavigation(&viewport->navigation, navigation_settings);
 }
 
@@ -315,12 +452,3 @@ void setViewportProjectionPlane(Viewport *viewport) {
     projection_plane->right = scaleVec3(*camera->transform.right_direction, 2);
     projection_plane->down  = scaleVec3(*camera->transform.up_direction, -2);
 }
-
-void uploadPrimitives(Scene *scene);
-void uploadLights(Scene *scene);
-void uploadScene(Scene *scene);
-void uploadMeshBVHs(Scene *scene);
-void uploadSceneBVH(Scene *scene);
-void allocateDeviceScene(Scene *scene);
-//void freeAllDeviceResources(SceneSettings *scene_counts);
-void renderOnGPU(Scene *scene, Viewport *viewport);

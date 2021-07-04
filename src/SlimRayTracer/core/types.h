@@ -217,6 +217,7 @@ typedef struct ViewportSettings {
     u32 hud_line_count;
     HUDLine *hud_lines;
     enum RenderMode render_mode;
+    enum ColorID hud_default_color;
     bool show_hud, show_BVH, show_SSB, use_GPU;
 } ViewportSettings;
 
@@ -401,32 +402,3 @@ typedef struct Defaults {
     u64 additional_memory_size;
     Settings settings;
 } Defaults;
-
-void setBoxEdgesFromVertices(BoxEdges *edges, BoxVertices *vertices) {
-    edges->sides.front_top.from    = vertices->corners.front_top_left;
-    edges->sides.front_top.to      = vertices->corners.front_top_right;
-    edges->sides.front_bottom.from = vertices->corners.front_bottom_left;
-    edges->sides.front_bottom.to   = vertices->corners.front_bottom_right;
-    edges->sides.front_left.from   = vertices->corners.front_bottom_left;
-    edges->sides.front_left.to     = vertices->corners.front_top_left;
-    edges->sides.front_right.from  = vertices->corners.front_bottom_right;
-    edges->sides.front_right.to    = vertices->corners.front_top_right;
-
-    edges->sides.back_top.from     = vertices->corners.back_top_left;
-    edges->sides.back_top.to       = vertices->corners.back_top_right;
-    edges->sides.back_bottom.from  = vertices->corners.back_bottom_left;
-    edges->sides.back_bottom.to    = vertices->corners.back_bottom_right;
-    edges->sides.back_left.from    = vertices->corners.back_bottom_left;
-    edges->sides.back_left.to      = vertices->corners.back_top_left;
-    edges->sides.back_right.from   = vertices->corners.back_bottom_right;
-    edges->sides.back_right.to     = vertices->corners.back_top_right;
-
-    edges->sides.left_bottom.from  = vertices->corners.front_bottom_left;
-    edges->sides.left_bottom.to    = vertices->corners.back_bottom_left;
-    edges->sides.left_top.from     = vertices->corners.front_top_left;
-    edges->sides.left_top.to       = vertices->corners.back_top_left;
-    edges->sides.right_bottom.from = vertices->corners.front_bottom_right;
-    edges->sides.right_bottom.to   = vertices->corners.back_bottom_right;
-    edges->sides.right_top.from    = vertices->corners.front_top_right;
-    edges->sides.right_top.to      = vertices->corners.back_top_right;
-}

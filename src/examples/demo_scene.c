@@ -3,38 +3,28 @@
 #include "../SlimRayTracer/viewport/hud.h"
 #include "../SlimRayTracer/viewport/navigation.h"
 #include "../SlimRayTracer/viewport/manipulation.h"
-
+#include "../SlimRayTracer/render/raytracer.h"
 // Or using the single-header file:
 // #include "../SlimRayTracer.h"
 
-#ifndef USE_GPU_DEFAULT
-#define USE_GPU_DEFAULT false
-#endif
-
-#include "../SlimRayTracer/render/raytracer.h"
+enum HUDLineID {
+    HUD_LINE__FPS,
+    HUD_LINE__GPU,
+    HUD_LINE__Width,
+    HUD_LINE__Height,
+    HUD_LINE__Bounces,
+    HUD_LINE__MatID,
+    HUD_LINE__BVH,
+    HUD_LINE__SSB,
+    HUD_LINE__Mode
+};
 
 u64 scene_io_time;
 bool last_scene_io_is_save;
 
-void setRenderMode(ViewportSettings *settings, enum RenderMode mode, HUDLine *hud_line) {
-    settings->render_mode = mode;
-    switch (mode) {
-        case RenderMode_Beauty : setString(&hud_line->value.string, (char*)"Beauty");  break;
-        case RenderMode_Normals: setString(&hud_line->value.string, (char*)"Normals"); break;
-        case RenderMode_Depth  : setString(&hud_line->value.string, (char*)"Depth");   break;
-        case RenderMode_UVs    : setString(&hud_line->value.string, (char*)"UVs");     break;
-        default: break;
-    }
-}
-void toggle(bool *state, char* on, char* off, enum ColorID on_color, enum ColorID off_color, HUDLine *hud_line) {
-    *state = !*state;
-    setString(&hud_line->value.string, *state ? on : off);
-    hud_line->value_color = *state ? on_color : off_color;
-}
-
 void setDimensionsInHUD(HUD *hud, i32 width, i32 height) {
-    printNumberIntoString(width,  &hud->lines[2].value);
-    printNumberIntoString(height, &hud->lines[3].value);
+    printNumberIntoString(width,  &hud->lines[HUD_LINE__Width ].value);
+    printNumberIntoString(height, &hud->lines[HUD_LINE__Height].value);
 }
 void onButtonDown(MouseButton *mouse_button) {
     app->controls.mouse.pos_raw_diff.x = 0;
@@ -50,36 +40,66 @@ void onDoubleClick(MouseButton *mouse_button) {
 }
 void drawSceneToViewport(Scene *scene, Viewport *viewport) {
     fillPixelGrid(viewport->frame_buffer, Color(Black));
-    if (viewport->settings.use_GPU) renderOnGPU(scene, viewport);
-    else renderOnCPU(scene, viewport);
+    renderScene(scene, viewport);
     if (viewport->settings.show_BVH) drawBVH(scene, viewport);
     if (viewport->settings.show_SSB) drawSSB(scene, viewport);
 }
 void setupViewport(Viewport *viewport) {
+    Dimensions *dim = &viewport->frame_buffer->dimensions;
+    u16 fps = app->time.timers.update.average_frames_per_second;
+    i32 bounces = (i32)viewport->trace.depth;
     HUD *hud = &viewport->hud;
     hud->line_height = 1.2f;
     hud->position.x = hud->position.y = 10;
+    setDimensionsInHUD(hud, dim->width, dim->height);
 
-    setDimensionsInHUD(hud, viewport->frame_buffer->dimensions.width, viewport->frame_buffer->dimensions.height);
-    printNumberIntoString(app->time.timers.update.average_frames_per_second, &hud->lines[0].value);
-    printNumberIntoString(1, &hud->lines[2].value);
-    setString(&hud->lines[0].title, (char*)"Fps    : ");
-    setString(&hud->lines[1].title, (char*)"Runs on: ");
-    setString(&hud->lines[2].title, (char*)"Width  : ");
-    setString(&hud->lines[3].title, (char*)"Height : ");
-    setString(&hud->lines[4].title, (char*)"Bounces: ");
-    setString(&hud->lines[5].title, (char*)"Mat. id: ");
-    setString(&hud->lines[6].title, (char*)"BVH    : ");
-    setString(&hud->lines[7].title, (char*)"SSB    : ");
-    setString(&hud->lines[8].title, (char*)"Mode   : ");
-    setString(&hud->lines[6].value.string,(char*)"Off");
-    setString(&hud->lines[7].value.string,(char*)"Off");
-    setString(&hud->lines[8].value.string,(char*)"Beauty");
-    setString(&hud->lines[1].value.string, USE_GPU_DEFAULT ? (char*)"GPU" : (char*)"CPU");
-    viewport->settings.use_GPU = USE_GPU_DEFAULT;
+    HUDLine *line = hud->lines;
+    enum HUDLineID line_id;
+    for (u8 i = 0; i < (u8)hud->line_count; i++, line++) {
+        NumberString *num = &line->value;
+        String *str = &line->value.string;
+        String *alt = &line->alternate_value;
 
-    for (u32 i = 0; i < hud->line_count; i++)
-        hud->lines[i].title_color = hud->lines[i].value_color = Green;
+        line_id = (enum HUDLineID)(i);
+        switch (line_id) {
+            case HUD_LINE__GPU:
+            case HUD_LINE__SSB:
+            case HUD_LINE__BVH:
+                setString(str, (char*)("On"));
+                setString(alt, (char*)("Off"));
+                line->alternate_value_color = DarkGreen;
+                line->invert_alternate_use = true;
+                line->use_alternate = line_id == HUD_LINE__BVH ? &viewport->settings.show_BVH :
+                                      line_id == HUD_LINE__SSB ? &viewport->settings.show_SSB :
+                                      &viewport->settings.use_GPU;
+                break;
+            case HUD_LINE__FPS:     printNumberIntoString(fps,         num); break;
+            case HUD_LINE__Width:   printNumberIntoString(dim->width,  num); break;
+            case HUD_LINE__Height:  printNumberIntoString(dim->height, num); break;
+            case HUD_LINE__Bounces: printNumberIntoString(bounces,     num); break;
+            case HUD_LINE__MatID:   printNumberIntoString(0,   num); break;
+            case HUD_LINE__Mode:
+                setRenderModeString(viewport->settings.render_mode, str);
+                break;
+            default:
+                break;
+        }
+
+        str = &line->title;
+        switch (line_id) {
+            case HUD_LINE__FPS:     setString(str, (char*)"Fps    : "); break;
+            case HUD_LINE__GPU:     setString(str, (char*)"Use GPU: "); break;
+            case HUD_LINE__SSB:     setString(str, (char*)"ShowSSB: "); break;
+            case HUD_LINE__BVH:     setString(str, (char*)"ShowBVH: "); break;
+            case HUD_LINE__Width:   setString(str, (char*)"Width  : "); break;
+            case HUD_LINE__Height:  setString(str, (char*)"Height : "); break;
+            case HUD_LINE__Bounces: setString(str, (char*)"Bounces: "); break;
+            case HUD_LINE__MatID:   setString(str, (char*)"Mat. id: "); break;
+            case HUD_LINE__Mode:    setString(str, (char*)"Mode   : "); break;
+            default:
+                break;
+        }
+    }
 
     xform3 *camera_xform = &viewport->camera->transform;
     camera_xform->position.y = 7;
@@ -122,8 +142,7 @@ void updateAndRender() {
         navigateViewport(viewport, timer->delta_time);
     } else {
         manipulateSelection(scene, viewport, controls);
-        if (scene->selection->transformed)
-            updateScene(scene, viewport, &app->bvh_builder);
+        if (scene->selection->transformed) updateScene(scene, viewport);
     }
 
     if (!controls->is_pressed.alt)
@@ -183,18 +202,22 @@ void onKeyChanged(u8 key, bool is_pressed) {
                 saveSceneToFile(  scene, file, platform);
             else {
                 loadSceneFromFile(scene, file, platform);
-                updateScene(scene, viewport, &app->bvh_builder);
+                updateScene(scene, viewport);
             }
             scene_io_time = app->time.getTicks();
         }
 
-        if (key == 'G') toggle(&settings->use_GPU, (char*)"GPU", (char*)"CPU", Green,  Red,   viewport->hud.lines + 1);
-        if (key == '9') toggle(&settings->show_BVH, (char*)"On", (char*)"Off", Yellow, Green, viewport->hud.lines + 6);
-        if (key == '0') toggle(&settings->show_SSB, (char*)"On", (char*)"Off", Yellow, Green, viewport->hud.lines + 7);
-        if (key == '1') setRenderMode(settings, RenderMode_Beauty,  viewport->hud.lines + 8);
-        if (key == '2') setRenderMode(settings, RenderMode_Depth,   viewport->hud.lines + 8);
-        if (key == '3') setRenderMode(settings, RenderMode_Normals, viewport->hud.lines + 8);
-        if (key == '4') setRenderMode(settings, RenderMode_UVs,     viewport->hud.lines + 8);
+        if (key == 'G') settings->use_GPU = USE_GPU_BY_DEFAULT ? !settings->use_GPU : false;
+        if (key == '9') settings->show_BVH = !settings->show_BVH;
+        if (key == '0') settings->show_SSB = !settings->show_SSB;
+        if (key == '1') settings->render_mode = RenderMode_Beauty;
+        if (key == '2') settings->render_mode = RenderMode_Depth;
+        if (key == '3') settings->render_mode = RenderMode_Normals;
+        if (key == '4') settings->render_mode = RenderMode_UVs;
+        if (key >= '1' &&
+            key <= '4')
+            setRenderModeString(settings->render_mode,
+                                &viewport->hud.lines[HUD_LINE__Mode].value.string);
     }
 }
 void setupScene(Scene *scene) {
@@ -496,9 +519,10 @@ void initApp(Defaults *defaults) {
     defaults->settings.scene.meshes = 2;
     defaults->settings.scene.mesh_files = file_paths;
     defaults->settings.scene.point_lights = 3;
-    defaults->settings.scene.materials    = 7;
+    defaults->settings.scene.materials    = 6;
     defaults->settings.scene.primitives   = 5;
     defaults->settings.viewport.hud_line_count = 9;
+    defaults->settings.viewport.hud_default_color = Green;
 
     app->on.keyChanged               = onKeyChanged;
     app->on.mouseButtonDown          = onButtonDown;
@@ -510,16 +534,3 @@ void initApp(Defaults *defaults) {
 
     scene_io_time = 0;
 }
-
-#ifndef __CUDACC__
-void uploadLights(Scene *scene) {}
-void uploadPrimitives(Scene *scene) {}
-void uploadScene(Scene *scene) {}
-void allocateDeviceScene(Scene *scene) {}
-void uploadMeshBVHs(Scene *scene) {}
-void uploadSceneBVH(Scene *scene) {}
-void renderOnGPU(Scene *scene, Viewport *viewport) {
-    viewport->settings.use_GPU = false;
-    renderOnCPU(scene, viewport);
-}
-#endif

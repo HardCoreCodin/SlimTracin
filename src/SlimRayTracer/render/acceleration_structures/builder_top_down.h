@@ -359,4 +359,5 @@ void updateSceneBVH(Scene *scene, BVHBuilder *builder) {
     }
 
     buildBVH(&scene->bvh, builder, scene->settings.primitives, MAX_OBJS_PER_SCENE_BVH_NODE);
+    uploadSceneBVH(scene);
 }

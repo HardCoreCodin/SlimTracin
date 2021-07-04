@@ -166,6 +166,8 @@ void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *
     }
 
     initBVH(&scene->bvh, settings->primitives, memory);
+
+    allocateDeviceScene(scene);
 }
 
 void _initApp(Defaults *defaults, void* window_content_memory) {
@@ -239,15 +241,12 @@ void _initApp(Defaults *defaults, void* window_content_memory) {
 
     initAppMemory(memory_size);
     initScene(scene, scene_settings, memory, &app->platform);
-    initBVHBuilder(builder, scene, memory);
 
     if (app->on.sceneReady) app->on.sceneReady(scene);
 
-    updateSceneBVH(scene, builder);
-
-    allocateDeviceScene(scene);
+    initBVHBuilder(builder, scene, memory);
     uploadScene(scene);
-    uploadSceneBVH(scene);
+    updateSceneBVH(scene, builder);
     uploadMeshBVHs(scene);
 
     if (viewport_settings->hud_line_count)
