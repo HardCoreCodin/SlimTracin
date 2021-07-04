@@ -169,13 +169,13 @@ INLINE vec3 refract(vec3 V, vec3 N, f32 NdotV, f32 n1_over_n2) {
     return normVec3(addVec3(a, b));
 }
 
-bool isTransparentUV(vec2 uv) {
+INLINE bool isTransparentUV(vec2 uv) {
     u8 v = (u8)(uv.y * 4);
     u8 u = (u8)(uv.x * 4);
     return v % 2 != 0 == u % 2;
 }
 
-BoxSide getBoxSide(vec3 octant, u8 axis) {
+INLINE BoxSide getBoxSide(vec3 octant, u8 axis) {
     switch (axis) {
         case 0 : return octant.x > 0 ? Right : Left;
         case 3 : return octant.x > 0 ? Left : Right;
@@ -186,7 +186,7 @@ BoxSide getBoxSide(vec3 octant, u8 axis) {
     }
 }
 
-vec2 getUVonUnitCube(vec3 pos, BoxSide side) {
+INLINE vec2 getUVonUnitCube(vec3 pos, BoxSide side) {
     vec2 uv;
 
     switch (side) {
@@ -224,14 +224,14 @@ vec2 getUVonUnitCube(vec3 pos, BoxSide side) {
     return uv;
 }
 
-void setRayFromCoords(Ray *ray, vec2i coords, Viewport *viewport) {
+INLINE void setRayFromCoords(Ray *ray, vec2i coords, Viewport *viewport) {
     ray->origin = viewport->camera->transform.position;
     ray->direction = scaleAddVec3(viewport->projection_plane.right, (f32)coords.x, viewport->projection_plane.start);
     ray->direction = scaleAddVec3(viewport->projection_plane.down,  (f32)coords.y, ray->direction);
     ray->direction = normVec3(ray->direction);
 }
 
-bool hitPlane(vec3 plane_origin, vec3 plane_normal, vec3 *ray_origin, vec3 *ray_direction, RayHit *hit) {
+INLINE bool hitPlane(vec3 plane_origin, vec3 plane_normal, vec3 *ray_origin, vec3 *ray_direction, RayHit *hit) {
     f32 Rd_dot_n = dotVec3(*ray_direction, plane_normal);
     if (Rd_dot_n == 0) // The ray is parallel to the plane
         return false;

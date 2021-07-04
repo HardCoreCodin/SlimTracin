@@ -53,11 +53,6 @@ typedef struct Time {
     GetTicks getTicks;
 } Time;
 
-typedef struct Curve {
-    f32 thickness;
-    u32 revolution_count;
-} Curve;
-
 typedef enum BoxSide {
     NoSide = 0,
     Top    = 1,
@@ -109,44 +104,10 @@ typedef struct Box {
     BoxEdges edges;
 } Box;
 
-typedef struct GridUVEdges {
-    Edge u[GRID__MAX_SEGMENTS];
-    Edge v[GRID__MAX_SEGMENTS];
-} GridUVEdges;
-
-typedef union GridEdges {
-    GridUVEdges uv;
-    Edge buffer[2][GRID__MAX_SEGMENTS];
-} GridEdges;
-
-typedef struct GridSideVertices {
-    vec3 from[GRID__MAX_SEGMENTS];
-    vec3 to[  GRID__MAX_SEGMENTS];
-} GridSideVertices;
-
-typedef struct GridUVVertices {
-    GridSideVertices u, v;
-} GridUVVertices;
-
-typedef union GridVertices {
-    GridUVVertices uv;
-    vec3 buffer[2][2][GRID__MAX_SEGMENTS];
-} GridVertices;
-
-typedef struct Grid {
-    GridEdges edges;
-    GridVertices vertices;
-    u8 u_segments,
-       v_segments;
-} Grid;
-
 enum PrimitiveType {
     PrimitiveType_None = 0,
     PrimitiveType_Mesh,
-    PrimitiveType_Grid,
     PrimitiveType_Box,
-    PrimitiveType_Helix,
-    PrimitiveType_Coil,
     PrimitiveType_Tetrahedron,
     PrimitiveType_Quad,
     PrimitiveType_Sphere
@@ -372,20 +333,15 @@ typedef struct SceneSettings {
     u32 cameras;
     u32 primitives;
     u32 meshes;
-    u32 triangles;
     u32 materials;
     u32 point_lights;
     u32 quad_lights;
-    u32 curves;
-    u32 boxes;
-    u32 grids;
     String file, *mesh_files;
-    bool autoload;
 } SceneSettings;
 
 typedef struct Scene {
     SceneSettings settings;
-    Selection selection;
+    Selection *selection;
     BVH bvh;
 
     Camera *cameras;
@@ -395,9 +351,6 @@ typedef struct Scene {
 
     Material *materials;
     Primitive *primitives;
-    Curve *curves;
-    Grid *grids;
-    Box *boxes;
     Mesh *meshes;
     u32 *mesh_bvh_node_counts,
         *mesh_triangle_counts;
@@ -476,11 +429,4 @@ void setBoxEdgesFromVertices(BoxEdges *edges, BoxVertices *vertices) {
     edges->sides.right_bottom.to   = vertices->corners.back_bottom_right;
     edges->sides.right_top.from    = vertices->corners.front_top_right;
     edges->sides.right_top.to      = vertices->corners.back_top_right;
-}
-
-void setGridEdgesFromVertices(Edge *edges, u8 edge_count, vec3 *from, vec3 *to) {
-    for (u8 i = 0; i < edge_count; i++) {
-        edges[i].from = from[i];
-        edges[i].to   = to[i];
-    }
 }

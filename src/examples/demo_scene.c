@@ -1,9 +1,5 @@
 #include "../SlimRayTracer/app.h"
 #include "../SlimRayTracer/core/time.h"
-#include "../SlimRayTracer/scene/io.h"
-#include "../SlimRayTracer/scene/grid.h"
-#include "../SlimRayTracer/scene/mesh.h"
-#include "../SlimRayTracer/scene/curve.h"
 #include "../SlimRayTracer/viewport/hud.h"
 #include "../SlimRayTracer/viewport/navigation.h"
 #include "../SlimRayTracer/viewport/manipulation.h"
@@ -11,27 +7,34 @@
 // Or using the single-header file:
 // #include "../SlimRayTracer.h"
 
-#define POINT_LIGHT_COUNT 3
-#define MATERIAL_COUNT 12
-#define PRIMITIVE_COUNT 18
+#ifndef USE_GPU_DEFAULT
+#define USE_GPU_DEFAULT false
+#endif
 
 #include "../SlimRayTracer/render/raytracer.h"
-
-void uploadLights(Scene *scene) {}
-void uploadPrimitives(Scene *scene) {}
-void uploadScene(Scene *scene) {}
-void uploadSSB(Scene *scene) {}
-void renderOnGPU(Scene *scene, Viewport *viewport) {}
-void allocateDeviceScene(Scene *scene) {}
-void uploadMeshBVHs(Scene *scene) {}
-void uploadSceneBVH(Scene *scene) {}
 
 u64 scene_io_time;
 bool last_scene_io_is_save;
 
-void setCountersInHUD(HUD *hud, Timer *timer) {
-    printNumberIntoString(timer->average_frames_per_second,      &hud->lines[0].value);
-    printNumberIntoString(timer->average_microseconds_per_frame, &hud->lines[1].value);
+void setRenderMode(ViewportSettings *settings, enum RenderMode mode, HUDLine *hud_line) {
+    settings->render_mode = mode;
+    switch (mode) {
+        case RenderMode_Beauty : setString(&hud_line->value.string, (char*)"Beauty");  break;
+        case RenderMode_Normals: setString(&hud_line->value.string, (char*)"Normals"); break;
+        case RenderMode_Depth  : setString(&hud_line->value.string, (char*)"Depth");   break;
+        case RenderMode_UVs    : setString(&hud_line->value.string, (char*)"UVs");     break;
+        default: break;
+    }
+}
+void toggle(bool *state, char* on, char* off, enum ColorID on_color, enum ColorID off_color, HUDLine *hud_line) {
+    *state = !*state;
+    setString(&hud_line->value.string, *state ? on : off);
+    hud_line->value_color = *state ? on_color : off_color;
+}
+
+void setDimensionsInHUD(HUD *hud, i32 width, i32 height) {
+    printNumberIntoString(width,  &hud->lines[2].value);
+    printNumberIntoString(height, &hud->lines[3].value);
 }
 void onButtonDown(MouseButton *mouse_button) {
     app->controls.mouse.pos_raw_diff.x = 0;
@@ -47,7 +50,8 @@ void onDoubleClick(MouseButton *mouse_button) {
 }
 void drawSceneToViewport(Scene *scene, Viewport *viewport) {
     fillPixelGrid(viewport->frame_buffer, Color(Black));
-    rayTrace(scene, viewport);
+    if (viewport->settings.use_GPU) renderOnGPU(scene, viewport);
+    else renderOnCPU(scene, viewport);
     if (viewport->settings.show_BVH) drawBVH(scene, viewport);
     if (viewport->settings.show_SSB) drawSSB(scene, viewport);
 }
@@ -55,14 +59,27 @@ void setupViewport(Viewport *viewport) {
     HUD *hud = &viewport->hud;
     hud->line_height = 1.2f;
     hud->position.x = hud->position.y = 10;
-    setCountersInHUD(hud, &app->time.timers.update);
+
+    setDimensionsInHUD(hud, viewport->frame_buffer->dimensions.width, viewport->frame_buffer->dimensions.height);
+    printNumberIntoString(app->time.timers.update.average_frames_per_second, &hud->lines[0].value);
     printNumberIntoString(1, &hud->lines[2].value);
-    setString(&hud->lines[0].title, "Fps    : ");
-    setString(&hud->lines[1].title, "mic-s/f: ");
-    setString(&hud->lines[2].title, "bounces: ");
-    setString(&hud->lines[3].title, "matr-id: ");
-    hud->lines[0].title_color = hud->lines[1].title_color = hud->lines[2].title_color = hud->lines[3].title_color = Green;
-    hud->lines[0].value_color = hud->lines[1].value_color = hud->lines[2].value_color = hud->lines[3].value_color = Green;
+    setString(&hud->lines[0].title, (char*)"Fps    : ");
+    setString(&hud->lines[1].title, (char*)"Runs on: ");
+    setString(&hud->lines[2].title, (char*)"Width  : ");
+    setString(&hud->lines[3].title, (char*)"Height : ");
+    setString(&hud->lines[4].title, (char*)"Bounces: ");
+    setString(&hud->lines[5].title, (char*)"Mat. id: ");
+    setString(&hud->lines[6].title, (char*)"BVH    : ");
+    setString(&hud->lines[7].title, (char*)"SSB    : ");
+    setString(&hud->lines[8].title, (char*)"Mode   : ");
+    setString(&hud->lines[6].value.string,(char*)"Off");
+    setString(&hud->lines[7].value.string,(char*)"Off");
+    setString(&hud->lines[8].value.string,(char*)"Beauty");
+    setString(&hud->lines[1].value.string, USE_GPU_DEFAULT ? (char*)"GPU" : (char*)"CPU");
+    viewport->settings.use_GPU = USE_GPU_DEFAULT;
+
+    for (u32 i = 0; i < hud->line_count; i++)
+        hud->lines[i].title_color = hud->lines[i].value_color = Green;
 
     xform3 *camera_xform = &viewport->camera->transform;
     camera_xform->position.y = 7;
@@ -105,8 +122,8 @@ void updateAndRender() {
         navigateViewport(viewport, timer->delta_time);
     } else {
         manipulateSelection(scene, viewport, controls);
-        if (scene->selection.transformed)
-            updateSceneBVH(scene, &app->bvh_builder);
+        if (scene->selection->transformed)
+            updateScene(scene, viewport, &app->bvh_builder);
     }
 
     if (!controls->is_pressed.alt)
@@ -116,9 +133,9 @@ void updateAndRender() {
     drawSelection(scene, viewport, controls);
 
     if (viewport->settings.show_hud) {
-        setCountersInHUD(&viewport->hud, timer);
-        printNumberIntoString((i32)viewport->trace.depth, &viewport->hud.lines[2].value);
-        printNumberIntoString(scene->selection.primitive ? scene->selection.primitive->material_id : 0, &viewport->hud.lines[3].value);
+        printNumberIntoString(app->time.timers.update.average_frames_per_second, &viewport->hud.lines[0].value);
+        printNumberIntoString((i32)viewport->trace.depth, &viewport->hud.lines[4].value);
+        printNumberIntoString(scene->selection->primitive ? scene->selection->primitive->material_id : 0, &viewport->hud.lines[5].value);
         drawHUD(viewport->frame_buffer, &viewport->hud);
     }
     f64 now = (f64)app->time.getTicks();
@@ -128,10 +145,10 @@ void updateAndRender() {
         char *message;
         RGBA color;
         if (last_scene_io_is_save) {
-            message = "Scene saved to: this.scene";
+            message = (char*)"Scene saved to: this.scene";
             color = Color(Yellow);
         } else {
-            message = "Scene loaded from: this.scene";
+            message = (char*)"Scene loaded from: this.scene";
             color = Color(Cyan);
         }
         i32 x = canvas->dimensions.width / 2 - 150;
@@ -166,19 +183,18 @@ void onKeyChanged(u8 key, bool is_pressed) {
                 saveSceneToFile(  scene, file, platform);
             else {
                 loadSceneFromFile(scene, file, platform);
-                updateSceneBVH(scene, &app->bvh_builder);
-                updateSceneSSB(scene, viewport);
+                updateScene(scene, viewport, &app->bvh_builder);
             }
             scene_io_time = app->time.getTicks();
         }
 
-        if (key == '1') settings->render_mode = RenderMode_Beauty;
-        if (key == '2') settings->render_mode = RenderMode_Depth;
-        if (key == '3') settings->render_mode = RenderMode_Normals;
-        if (key == '4') settings->render_mode = RenderMode_UVs;
-
-        if (key == '9') settings->show_BVH = !settings->show_BVH;
-        if (key == '0') settings->show_SSB = !settings->show_SSB;
+        if (key == 'G') toggle(&settings->use_GPU, (char*)"GPU", (char*)"CPU", Green,  Red,   viewport->hud.lines + 1);
+        if (key == '9') toggle(&settings->show_BVH, (char*)"On", (char*)"Off", Yellow, Green, viewport->hud.lines + 6);
+        if (key == '0') toggle(&settings->show_SSB, (char*)"On", (char*)"Off", Yellow, Green, viewport->hud.lines + 7);
+        if (key == '1') setRenderMode(settings, RenderMode_Beauty,  viewport->hud.lines + 8);
+        if (key == '2') setRenderMode(settings, RenderMode_Depth,   viewport->hud.lines + 8);
+        if (key == '3') setRenderMode(settings, RenderMode_Normals, viewport->hud.lines + 8);
+        if (key == '4') setRenderMode(settings, RenderMode_UVs,     viewport->hud.lines + 8);
     }
 }
 void setupScene(Scene *scene) {
@@ -192,28 +208,25 @@ void setupScene(Scene *scene) {
     u8 blinn_material_id = 3;
     u8 reflective_material_id = 4;
     u8 refractive_material_id = 5;
-    u8 reflective_refractive_material_id = 6;
 
     Material *walls_material                 = scene->materials + wall_material_id,
             *diffuse_material               = scene->materials + diffuse_material_id,
             *phong_material                 = scene->materials + phong_material_id,
             *blinn_material                 = scene->materials + blinn_material_id,
             *reflective_material            = scene->materials + reflective_material_id,
-            *refractive_material            = scene->materials + refractive_material_id,
-            *reflective_refractive_material = scene->materials + reflective_refractive_material_id;
+            *refractive_material            = scene->materials + refractive_material_id;
 
     walls_material->uses = LAMBERT;
     diffuse_material->uses = LAMBERT;
     phong_material->uses = LAMBERT | PHONG | TRANSPARENCY;
     blinn_material->uses = LAMBERT | BLINN;
-    reflective_material->uses = LAMBERT | BLINN | REFLECTION;
-    refractive_material->uses = LAMBERT | BLINN | REFRACTION;
-    reflective_refractive_material->uses = BLINN | REFLECTION | REFRACTION;
+    reflective_material->uses = BLINN | REFLECTION;
+    refractive_material->uses = BLINN | REFRACTION;
 
     quat identity_orientation = getIdentityQuaternion();
 
     Material* material = scene->materials;
-    for (int i = 0; i < MATERIAL_COUNT; i++, material++) {
+    for (u32 i = 0; i < scene->settings.materials; i++, material++) {
         material->diffuse = getVec3Of(1);
         material->roughness = 1;
         material->shininess = 1;
@@ -352,7 +365,7 @@ void setupScene(Scene *scene) {
 //    }
 
     vec3 scale = getVec3Of(1);
-    for (u8 i = 0; i < 1; i++) {
+    for (u8 i = 0; i < 2; i++) {
         primitive = scene->primitives + i;
         primitive->id = i;
         primitive->type = PrimitiveType_Quad;
@@ -375,14 +388,14 @@ void setupScene(Scene *scene) {
 //    primitive->rotation.axis.x = 1;
 //    primitive->rotation.amount = 0;
 //
-//    // Left quad:
-//    primitive++;
-//    primitive->scale.x = 20;
-//    primitive->scale.z = 40;
-//    primitive->position.x = -40;
-//    primitive->position.y = 20;
-//    primitive->rotation.axis.z = -HALF_SQRT2;
-//    primitive->rotation.amount = +HALF_SQRT2;
+    // Left quad:
+    primitive++;
+    primitive->scale.x = 20;
+    primitive->scale.z = 40;
+    primitive->position.x = -40;
+    primitive->position.y = 20;
+    primitive->rotation.axis.z = -HALF_SQRT2;
+    primitive->rotation.amount = +HALF_SQRT2;
 //
 //    // Right quad:
 //    primitive++;
@@ -461,6 +474,7 @@ void setupScene(Scene *scene) {
 }
 
 void onResize(u16 width, u16 height) {
+    setDimensionsInHUD(&app->viewport.hud, width, height);
     updateSceneSSB(&app->scene, &app->viewport);
 }
 
@@ -475,16 +489,16 @@ void initApp(Defaults *defaults) {
     mesh_file2->char_ptr = string_buffers[1];
     scene_file->char_ptr = string_buffers[2];
 
-    u32 offset = getDirectoryLength(__FILE__);
-    mergeString(mesh_file1, __FILE__, "suzanne.mesh", offset);
-    mergeString(mesh_file2, __FILE__, "dragon.mesh",  offset);
-    mergeString(scene_file, __FILE__, "this.scene",   offset);
+    u32 offset = getDirectoryLength((char*)__FILE__);
+    mergeString(mesh_file1, (char*)__FILE__, (char*)"suzanne.mesh", offset);
+    mergeString(mesh_file2, (char*)__FILE__, (char*)"dragon.mesh",  offset);
+    mergeString(scene_file, (char*)__FILE__, (char*)"this.scene",   offset);
     defaults->settings.scene.meshes = 2;
     defaults->settings.scene.mesh_files = file_paths;
-    defaults->settings.scene.point_lights = POINT_LIGHT_COUNT;
-    defaults->settings.scene.materials    = MATERIAL_COUNT;
-    defaults->settings.scene.primitives   = 4;//PRIMITIVE_COUNT + 3;
-    defaults->settings.viewport.hud_line_count = 4;
+    defaults->settings.scene.point_lights = 3;
+    defaults->settings.scene.materials    = 7;
+    defaults->settings.scene.primitives   = 5;
+    defaults->settings.viewport.hud_line_count = 9;
 
     app->on.keyChanged               = onKeyChanged;
     app->on.mouseButtonDown          = onButtonDown;
@@ -496,3 +510,16 @@ void initApp(Defaults *defaults) {
 
     scene_io_time = 0;
 }
+
+#ifndef __CUDACC__
+void uploadLights(Scene *scene) {}
+void uploadPrimitives(Scene *scene) {}
+void uploadScene(Scene *scene) {}
+void allocateDeviceScene(Scene *scene) {}
+void uploadMeshBVHs(Scene *scene) {}
+void uploadSceneBVH(Scene *scene) {}
+void renderOnGPU(Scene *scene, Viewport *viewport) {
+    viewport->settings.use_GPU = false;
+    renderOnCPU(scene, viewport);
+}
+#endif

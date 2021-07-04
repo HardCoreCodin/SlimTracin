@@ -122,7 +122,6 @@ void* allocateAppMemory(u64 size) {
     app->is_running = false;
     return null;
 }
-
 void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *platform) {
     scene->settings = *settings;
     scene->primitives   = null;
@@ -130,62 +129,40 @@ void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *
     scene->point_lights = null;
     scene->quad_lights  = null;
     scene->cameras      = null;
-    scene->curves       = null;
-    scene->boxes        = null;
-    scene->grids        = null;
     scene->meshes       = null;
     scene->mesh_triangle_counts = null;
     scene->mesh_bvh_node_counts = null;
 
-    initSelection(&scene->selection);
+    scene->selection = (Selection*)allocateMemory(memory, sizeof(Selection));
+    scene->selection->object_type = scene->selection->object_id = 0;
+    scene->selection->changed = false;
 
     if (settings->meshes && settings->mesh_files) {
-        scene->meshes               = allocateMemory(memory, sizeof(Mesh) * settings->meshes);
-        scene->mesh_bvh_node_counts = allocateMemory(memory, sizeof(u32)  * settings->meshes);
-        scene->mesh_triangle_counts = allocateMemory(memory, sizeof(u32)  * settings->meshes);
+        scene->meshes               = (Mesh*)allocateMemory(memory, sizeof(Mesh) * settings->meshes);
+        scene->mesh_bvh_node_counts = (u32* )allocateMemory(memory, sizeof(u32)  * settings->meshes);
+        scene->mesh_triangle_counts = (u32* )allocateMemory(memory, sizeof(u32)  * settings->meshes);
         for (u32 i = 0; i < settings->meshes; i++) {
             loadMeshFromFile(&scene->meshes[i], settings->mesh_files[i].char_ptr, platform, memory);
             scene->mesh_bvh_node_counts[i] = scene->meshes[i].bvh.node_count;
             scene->mesh_triangle_counts[i] = scene->meshes[i].triangle_count;
         }
     }
-    if (settings->materials)    scene->materials    = allocateMemory(memory, sizeof(Material)   * settings->materials);
-    if (settings->point_lights) scene->point_lights = allocateMemory(memory, sizeof(PointLight) * settings->point_lights);
-    if (settings->quad_lights)  scene->quad_lights  = allocateMemory(memory, sizeof(QuadLight)  * settings->quad_lights);
+    if (settings->materials)    scene->materials    = (Material*  )allocateMemory(memory, sizeof(Material)   * settings->materials);
+    if (settings->point_lights) scene->point_lights = (PointLight*)allocateMemory(memory, sizeof(PointLight) * settings->point_lights);
+    if (settings->quad_lights)  scene->quad_lights  = (QuadLight* )allocateMemory(memory, sizeof(QuadLight)  * settings->quad_lights);
 
     if (settings->cameras) {
-        scene->cameras = allocateMemory(memory, sizeof(Camera) * settings->cameras);
+        scene->cameras = (Camera*)allocateMemory(memory, sizeof(Camera) * settings->cameras);
         if (scene->cameras)
             for (u32 i = 0; i < settings->cameras; i++)
                 initCamera(scene->cameras + i);
     }
 
     if (settings->primitives) {
-        scene->primitives = allocateMemory(memory, sizeof(Primitive) * settings->primitives);
+        scene->primitives = (Primitive*)allocateMemory(memory, sizeof(Primitive) * settings->primitives);
         if (scene->primitives)
             for (u32 i = 0; i < settings->primitives; i++)
                 initPrimitive(scene->primitives + i);
-    }
-
-    if (settings->curves) {
-        scene->curves = allocateMemory(memory, sizeof(Curve) * settings->curves);
-        if (scene->curves)
-            for (u32 i = 0; i < settings->curves; i++)
-                initCurve(scene->curves + i);
-    }
-
-    if (settings->boxes) {
-        scene->boxes = allocateMemory(memory, sizeof(Box) * settings->boxes);
-        if (scene->boxes)
-            for (u32 i = 0; i < settings->boxes; i++)
-                initBox(scene->boxes + i);
-    }
-
-    if (settings->grids) {
-        scene->grids = allocateMemory(memory, sizeof(Grid) * settings->grids);
-        if (scene->grids)
-            for (u32 i = 0; i < settings->grids; i++)
-                initGrid(scene->grids + i, 3, 3);
     }
 
     initBVH(&scene->bvh, settings->primitives, memory);
@@ -223,7 +200,7 @@ void _initApp(Defaults *defaults, void* window_content_memory) {
     initMouse(&app->controls.mouse);
     initPixelGrid(frame_buffer, (Pixel*)window_content_memory);
 
-    defaults->title = "";
+    defaults->title = (char*)"";
     defaults->width = 480;
     defaults->height = 360;
     defaults->additional_memory_size = 0;
@@ -233,15 +210,13 @@ void _initApp(Defaults *defaults, void* window_content_memory) {
     setDefaultNavigationSettings(navigation_settings);
 
     initApp(defaults);
-    u32 memory_size = defaults->additional_memory_size;
+
+    u64 memory_size = sizeof(Selection) + defaults->additional_memory_size;
     memory_size += scene_settings->primitives * sizeof(Primitive);
     memory_size += scene_settings->primitives * sizeof(Rect);
     memory_size += scene_settings->primitives * sizeof(vec3);
     memory_size += scene_settings->meshes     * sizeof(Mesh);
     memory_size += scene_settings->meshes     * sizeof(u32) * 2;
-    memory_size += scene_settings->curves     * sizeof(Curve);
-    memory_size += scene_settings->boxes      * sizeof(Box);
-    memory_size += scene_settings->grids      * sizeof(Grid);
     memory_size += scene_settings->cameras    * sizeof(Camera);
     memory_size += scene_settings->materials  * sizeof(Material);
     memory_size += scene_settings->quad_lights  * sizeof(QuadLight);
@@ -269,11 +244,14 @@ void _initApp(Defaults *defaults, void* window_content_memory) {
     if (app->on.sceneReady) app->on.sceneReady(scene);
 
     updateSceneBVH(scene, builder);
+
+    allocateDeviceScene(scene);
+    uploadScene(scene);
     uploadSceneBVH(scene);
     uploadMeshBVHs(scene);
 
     if (viewport_settings->hud_line_count)
-        viewport_settings->hud_lines = allocateAppMemory(viewport_settings->hud_line_count * sizeof(HUDLine));
+        viewport_settings->hud_lines = (HUDLine*)allocateAppMemory(viewport_settings->hud_line_count * sizeof(HUDLine));
 
     initViewport(viewport,
                  viewport_settings,

@@ -71,7 +71,30 @@ void drawBVH(Scene *scene, Viewport *viewport) {
     }
 }
 
-void rayTrace(Scene *scene, Viewport *viewport) {
+void updateScene(Scene *scene, Viewport *viewport, BVHBuilder *builder) {
+    updateSceneBVH(scene, builder);
+    uploadSceneBVH(scene);
+    updateSceneSSB(scene, viewport);
+}
+
+INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode, u16 x, u16 y, Pixel *pixel) {
+    if (hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y)) {
+        vec3 color;
+        switch (mode) {
+            case RenderMode_Beauty    : color = shadeSurface2(ray, trace, scene); break;
+            case RenderMode_Depth     : color = shadeDepth(trace->closest_hit.distance);          break;
+            case RenderMode_Normals   : color = shadeDirection(trace->closest_hit.normal);        break;
+            case RenderMode_UVs       : color = shadeUV(trace->closest_hit.uv);                   break;
+        }
+        if (mode == RenderMode_Beauty)
+            setPixelBakedToneMappedColor(pixel, &color);
+        else
+            setPixelColor(pixel, &color);
+    } else
+        pixel->color = Color(Black);
+}
+
+void renderOnCPU(Scene *scene, Viewport *viewport) {
     PixelGrid *frame_buffer = viewport->frame_buffer;
     Pixel* pixel = frame_buffer->pixels;
     Dimensions *dim = &frame_buffer->dimensions;
@@ -82,9 +105,7 @@ void rayTrace(Scene *scene, Viewport *viewport) {
     vec3 start      = viewport->projection_plane.start;
     vec3 right      = viewport->projection_plane.right;
     vec3 down       = viewport->projection_plane.down;
-    vec3 color, current = start;
-    Pixel black_pixel;
-    black_pixel.color = Color(Black);
+    vec3 current = start;
 
     Ray ray;
     ray.origin = ray_origin;
@@ -99,21 +120,9 @@ void rayTrace(Scene *scene, Viewport *viewport) {
             ray.origin = ray_origin;
             ray.direction = normVec3(current);
             ray.direction_reciprocal = oneOverVec3(ray.direction);
-            trace->closest_hit.distance = trace->closest_hit.distance_squared = MAX_DISTANCE;
+            trace->closest_hit.distance = trace->closest_hit.distance_squared = INFINITY;
 
-            if (hitPrimitives(&ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y)) {
-                switch (mode) {
-                    case RenderMode_Beauty    : color = shadeSurface2(&ray, trace, scene); break;
-                    case RenderMode_Depth     : color = shadeDepth(trace->closest_hit.distance);          break;
-                    case RenderMode_Normals   : color = shadeDirection(trace->closest_hit.normal);        break;
-                    case RenderMode_UVs       : color = shadeUV(trace->closest_hit.uv);                   break;
-                }
-                if (mode == RenderMode_Beauty)
-                    setPixelBakedToneMappedColor(pixel, &color);
-                else
-                    setPixelColor(pixel, &color);
-            } else
-                *pixel = black_pixel;
+            rayTrace(&ray, trace, scene, mode, x, y, pixel);
 
             current = addVec3(current, right);
         }

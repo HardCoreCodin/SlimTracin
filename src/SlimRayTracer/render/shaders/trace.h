@@ -5,7 +5,7 @@
 #include "../AABB.h"
 #include "./intersection/primitives.h"
 
-INLINE bool traceScene(Ray *ray, Trace *trace, Scene *scene, bool any_hit) {
+INLINE bool _traceScene(Ray *ray, Trace *trace, Scene *scene, bool any_hit) {
     ray->direction_reciprocal = oneOverVec3(ray->direction);
     prePrepRay(ray);
 
@@ -82,11 +82,11 @@ INLINE bool tracePrimaryRay(Ray *ray, Trace *trace, Scene *scene, u16 x, u16 y) 
     return hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y);
 }
 
-bool inShadow(Ray *ray, Trace *trace, Scene *scene) {
-    return traceScene(ray, trace, scene, true);
+INLINE bool inShadow(Ray *ray, Trace *trace, Scene *scene) {
+    return _traceScene(ray, trace, scene, true);
 }
 
 INLINE bool traceRay(Ray *ray, Trace *trace, Scene *scene) {
     trace->closest_hit.distance = trace->closest_hit.distance_squared = INFINITY;
-    return traceScene(ray, trace, scene, false);
+    return _traceScene(ray, trace, scene, false);
 }

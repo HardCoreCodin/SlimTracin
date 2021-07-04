@@ -2,7 +2,7 @@
 
 #include "./base.h"
 
-void accumulateTimer(Timer* timer) {
+INLINE void accumulateTimer(Timer* timer) {
     timer->ticks_diff = timer->ticks_after - timer->ticks_before;
     timer->accumulated_ticks += timer->ticks_diff;
     timer->accumulated_frame_count++;
@@ -13,7 +13,7 @@ void accumulateTimer(Timer* timer) {
     timer->nanoseconds  = (u64)(timer->ticks->per_tick.nanoseconds  * (f64)(timer->ticks_diff));
 }
 
-void averageTimer(Timer *timer) {
+INLINE void averageTimer(Timer *timer) {
     timer->average_frames_per_tick = (f64)timer->accumulated_frame_count / timer->accumulated_ticks;
     timer->average_ticks_per_frame = (f64)timer->accumulated_ticks / timer->accumulated_frame_count;
     timer->average_frames_per_second = (u16)(timer->average_frames_per_tick      * timer->ticks->per_second);

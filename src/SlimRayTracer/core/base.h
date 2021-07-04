@@ -16,14 +16,16 @@
     #define COMPILER_MSVC 1
 #endif
 
-#ifndef NDEBUG
-#define INLINE
-#elif defined(COMPILER_MSVC)
-#define INLINE inline __forceinline
-#elif defined(COMPILER_CLANG_OR_GCC)
-    #define INLINE inline __attribute__((always_inline))
-#else
-    #define INLINE inline
+#ifndef INLINE
+    #ifndef NDEBUG
+        #define INLINE
+    #elif defined(COMPILER_MSVC)
+        #define INLINE inline __forceinline
+    #elif defined(COMPILER_CLANG_OR_GCC)
+        #define INLINE inline __attribute__((always_inline))
+    #else
+        #define INLINE inline
+    #endif
 #endif
 
 #if defined(COMPILER_CLANG_OR_GCC)
@@ -310,7 +312,7 @@ enum ColorID {
     Yellow
 };
 
-RGBA Color(enum ColorID color_id) {
+INLINE RGBA Color(enum ColorID color_id) {
     RGBA color;
     color.A = MAX_COLOR_VALUE;
 

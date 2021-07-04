@@ -1,6 +1,6 @@
 #pragma once
 
-bool computeSSB(Rect *bounds, vec3 *pos, f32 r, f32 focal_length, Dimensions *dimensions) {
+INLINE bool computeSSB(Rect *bounds, vec3 *pos, f32 r, f32 focal_length, Dimensions *dimensions) {
 /*
  h = y - t
  HH = zz + tt
@@ -169,7 +169,7 @@ void updateSceneSSB(Scene *scene, Viewport *viewport) {
     for (u32 i = 0; i < scene->settings.primitives; i++)
         updatePrimitiveSSB(scene, viewport, scene->primitives + i);
 
-    uploadSSB(scene);
+    uploadPrimitives(scene);
 }
 
 void drawSSB(Scene *scene, Viewport *viewport) {

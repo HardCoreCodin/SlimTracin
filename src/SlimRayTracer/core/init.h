@@ -235,17 +235,9 @@ void setDefaultSceneSettings(SceneSettings *settings) {
     settings->point_lights = 0;
     settings->quad_lights = 0;
     settings->meshes = 0;
-    settings->curves = 0;
-    settings->boxes = 0;
-    settings->grids = 0;
     settings->mesh_files = null;
     settings->file.char_ptr = null;
     settings->file.length = 0;
-}
-
-void initCurve(Curve *curve) {
-    curve->thickness = 0.1f;
-    curve->revolution_count = 1;
 }
 
 void initPrimitive(Primitive *primitive) {
@@ -265,36 +257,6 @@ void initPrimitive(Primitive *primitive) {
     primitive->rotation.amount = 1;
 }
 
-bool initGrid(Grid *grid, u8 u_segments, u8 v_segments) {
-    if (!u_segments || u_segments > GRID__MAX_SEGMENTS ||
-        !v_segments || v_segments > GRID__MAX_SEGMENTS)
-        return false;
-
-    grid->u_segments = u_segments;
-    grid->v_segments = v_segments;
-
-    f32 u_step = u_segments > 1 ? (2.0f / (u_segments - 1)) : 0;
-    f32 v_step = v_segments > 1 ? (2.0f / (v_segments - 1)) : 0;
-
-    for (u8 u = 0; u < grid->u_segments; u++) {
-        grid->vertices.uv.u.from[u].y = grid->vertices.uv.u.to[u].y = 0;
-        grid->vertices.uv.u.from[u].x = grid->vertices.uv.u.to[u].x = -1 + u * u_step;
-        grid->vertices.uv.u.from[u].z = -1;
-        grid->vertices.uv.u.to[  u].z = +1;
-    }
-    for (u8 v = 0; v < grid->v_segments; v++) {
-        grid->vertices.uv.v.from[v].y = grid->vertices.uv.v.to[v].y = 0;
-        grid->vertices.uv.v.from[v].z = grid->vertices.uv.v.to[v].z = -1 + v * v_step;
-        grid->vertices.uv.v.from[v].x = -1;
-        grid->vertices.uv.v.to[  v].x = +1;
-    }
-
-    setGridEdgesFromVertices(grid->edges.uv.u, grid->u_segments, grid->vertices.uv.u.from, grid->vertices.uv.u.to);
-    setGridEdgesFromVertices(grid->edges.uv.v, grid->v_segments, grid->vertices.uv.v.from, grid->vertices.uv.v.to);
-
-    return true;
-}
-
 void initBVHNode(BVHNode *node) {
     node->aabb.min.x = node->aabb.min.y = node->aabb.min.z = 0;
     node->aabb.max.x = node->aabb.max.y = node->aabb.max.z = 0;
@@ -303,8 +265,8 @@ void initBVHNode(BVHNode *node) {
 }
 
 void initBVH(BVH *bvh, u32 leaf_count, Memory *memory) {
-    bvh->nodes    = allocateMemory(memory, sizeof(BVHNode) * leaf_count * 2);
-    bvh->leaf_ids = allocateMemory(memory, sizeof(u32) * leaf_count);
+    bvh->nodes    = (BVHNode*)allocateMemory(memory, sizeof(BVHNode) * leaf_count * 2);
+    bvh->leaf_ids = (u32*    )allocateMemory(memory, sizeof(u32) * leaf_count);
 }
 
 u32 getBVHMemorySize(u32 leaf_count) {
@@ -322,11 +284,11 @@ void initTrace(Trace *trace, Scene *scene, Memory *memory) {
         for (u32 m = 0; m < scene->settings.meshes; m++)
             if (scene->meshes[m].bvh.depth > max_depth)
                 max_depth = scene->meshes[m].bvh.depth;
-        trace->mesh_stack = allocateMemory(memory, sizeof(u32) * (max_depth + 2));
+        trace->mesh_stack = (u32*)allocateMemory(memory, sizeof(u32) * (max_depth + 2));
     } else
         trace->mesh_stack = null;
 
-    trace->scene_stack = allocateMemory(memory, sizeof(u32) * scene->settings.primitives);
+    trace->scene_stack = (u32*)allocateMemory(memory, sizeof(u32) * scene->settings.primitives);
     trace->depth = 2;
 }
 
@@ -337,11 +299,6 @@ INLINE void prePrepRay(Ray *ray) {
     ray->scaled_origin.x = -ray->origin.x * ray->direction_reciprocal.x;
     ray->scaled_origin.y = -ray->origin.y * ray->direction_reciprocal.y;
     ray->scaled_origin.z = -ray->origin.z * ray->direction_reciprocal.z;
-}
-
-void initSelection(Selection *selection) {
-    selection->object_type = selection->object_id = 0;
-    selection->changed = false;
 }
 
 void setViewportProjectionPlane(Viewport *viewport) {
@@ -362,10 +319,8 @@ void setViewportProjectionPlane(Viewport *viewport) {
 void uploadPrimitives(Scene *scene);
 void uploadLights(Scene *scene);
 void uploadScene(Scene *scene);
-void uploadSSB(Scene *scene);
 void uploadMeshBVHs(Scene *scene);
 void uploadSceneBVH(Scene *scene);
-void allocateDeviceAccelerationStructures();
 void allocateDeviceScene(Scene *scene);
-void freeAllDeviceResources(SceneSettings *scene_counts);
+//void freeAllDeviceResources(SceneSettings *scene_counts);
 void renderOnGPU(Scene *scene, Viewport *viewport);

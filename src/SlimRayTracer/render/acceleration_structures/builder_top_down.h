@@ -48,18 +48,18 @@ void initBVHBuilder(BVHBuilder *builder, Scene *scene, Memory *memory) {
 
     u32 leaf_node_count = scene->settings.primitives > max_triangle_count ? scene->settings.primitives : max_triangle_count;
 
-    builder->build_iterations = allocateMemory(memory, sizeof(BuildIteration) * leaf_node_count);
-    builder->leaf_nodes       = allocateMemory(memory, sizeof(BVHNode)        * leaf_node_count);
-    builder->leaf_ids         = allocateMemory(memory, sizeof(u32)            * leaf_node_count);
-    builder->sort_stack       = allocateMemory(memory, sizeof(i32)            * leaf_node_count);
+    builder->build_iterations = (BuildIteration*)allocateMemory(memory, sizeof(BuildIteration) * leaf_node_count);
+    builder->leaf_nodes       = (BVHNode*       )allocateMemory(memory, sizeof(BVHNode)        * leaf_node_count);
+    builder->leaf_ids         = (u32*           )allocateMemory(memory, sizeof(u32)            * leaf_node_count);
+    builder->sort_stack       = (i32*           )allocateMemory(memory, sizeof(i32)            * leaf_node_count);
 
     PartitionAxis *pa = builder->partition_axis;
     for (u8 i = 0; i < 3; i++, pa++) {
-        pa->sorted_leaf_ids     = allocateMemory(memory, sizeof(u32)  * leaf_node_count);
-        pa->left.aabbs          = allocateMemory(memory, sizeof(AABB) * leaf_node_count);
-        pa->right.aabbs         = allocateMemory(memory, sizeof(AABB) * leaf_node_count);
-        pa->left.surface_areas  = allocateMemory(memory, sizeof(f32)  * leaf_node_count);
-        pa->right.surface_areas = allocateMemory(memory, sizeof(f32)  * leaf_node_count);
+        pa->sorted_leaf_ids     = (u32* )allocateMemory(memory, sizeof(u32)  * leaf_node_count);
+        pa->left.aabbs          = (AABB*)allocateMemory(memory, sizeof(AABB) * leaf_node_count);
+        pa->right.aabbs         = (AABB*)allocateMemory(memory, sizeof(AABB) * leaf_node_count);
+        pa->left.surface_areas  = (f32* )allocateMemory(memory, sizeof(f32)  * leaf_node_count);
+        pa->right.surface_areas = (f32* )allocateMemory(memory, sizeof(f32)  * leaf_node_count);
     }
 }
 
@@ -259,7 +259,7 @@ void buildBVH(BVH *bvh, BVHBuilder *builder, u32 N, u32 max_leaf_size) {
             right.node_id = node->first_child_id + 1;
             stack[  index] = left;
             stack[++index] = right;
-            if (index > bvh->depth) bvh->depth = index;
+            if (index > (i32)bvh->depth) bvh->depth = (u32)index;
         }
     }
 

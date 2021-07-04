@@ -30,14 +30,14 @@ u32 getMeshMemorySize(Mesh *mesh, char *file_path, Platform *platform) {
 }
 
 void initMesh(Mesh *mesh, Memory *memory) {
-    mesh->triangles               = allocateMemory(memory, sizeof(Triangle)              * mesh->triangle_count);
-    mesh->vertex_positions        = allocateMemory(memory, sizeof(vec3)                  * mesh->vertex_count);
-    mesh->vertex_position_indices = allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count);
-    mesh->edge_vertex_indices     = allocateMemory(memory, sizeof(EdgeVertexIndices)     * mesh->edge_count);
-    mesh->vertex_uvs              = mesh->uvs_count     ? allocateMemory(memory, sizeof(vec2)                  * mesh->uvs_count)      : null;
-    mesh->vertex_normals          = mesh->normals_count ? allocateMemory(memory, sizeof(vec3)                  * mesh->normals_count)  : null;
-    mesh->vertex_uvs_indices      = mesh->uvs_count     ? allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count) : null;
-    mesh->vertex_normal_indices   = mesh->normals_count ? allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count) : null;
+    mesh->triangles               = (Triangle*             )allocateMemory(memory, sizeof(Triangle)              * mesh->triangle_count);
+    mesh->vertex_positions        = (vec3*                 )allocateMemory(memory, sizeof(vec3)                  * mesh->vertex_count);
+    mesh->vertex_position_indices = (TriangleVertexIndices*)allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count);
+    mesh->edge_vertex_indices     = (EdgeVertexIndices*    )allocateMemory(memory, sizeof(EdgeVertexIndices)     * mesh->edge_count);
+    mesh->vertex_uvs              = mesh->uvs_count     ? (vec2*                 )allocateMemory(memory, sizeof(vec2)                  * mesh->uvs_count)      : null;
+    mesh->vertex_normals          = mesh->normals_count ? (vec3*                 )allocateMemory(memory, sizeof(vec3)                  * mesh->normals_count)  : null;
+    mesh->vertex_uvs_indices      = mesh->uvs_count     ? (TriangleVertexIndices*)allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count) : null;
+    mesh->vertex_normal_indices   = mesh->normals_count ? (TriangleVertexIndices*)allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count) : null;
     initBVH(&mesh->bvh, mesh->triangle_count, memory);
 }
 
@@ -104,18 +104,6 @@ void loadSceneFromFile(Scene *scene, char* file_path, Platform *platform) {
         for (u32 i = 0; i < scene->settings.primitives; i++)
             platform->readFromFile(scene->primitives + i, sizeof(Primitive), file);
 
-    if (scene->grids)
-        for (u32 i = 0; i < scene->settings.grids; i++)
-            platform->readFromFile(scene->grids + i, sizeof(Grid), file);
-
-    if (scene->boxes)
-        for (u32 i = 0; i < scene->settings.boxes; i++)
-            platform->readFromFile(scene->boxes + i, sizeof(Box), file);
-
-    if (scene->curves)
-        for (u32 i = 0; i < scene->settings.curves; i++)
-            platform->readFromFile(scene->curves + i, sizeof(Curve), file);
-
     platform->closeFile(file);
 }
 
@@ -131,18 +119,6 @@ void saveSceneToFile(Scene *scene, char* file_path, Platform *platform) {
     if (scene->primitives)
         for (u32 i = 0; i < scene->settings.primitives; i++)
             platform->writeToFile(scene->primitives + i, sizeof(Primitive), file);
-
-    if (scene->grids)
-        for (u32 i = 0; i < scene->settings.grids; i++)
-            platform->writeToFile(scene->grids + i, sizeof(Grid), file);
-
-    if (scene->boxes)
-        for (u32 i = 0; i < scene->settings.boxes; i++)
-            platform->writeToFile(scene->boxes + i, sizeof(Box), file);
-
-    if (scene->curves)
-        for (u32 i = 0; i < scene->settings.curves; i++)
-            platform->writeToFile(scene->curves + i, sizeof(Curve), file);
 
     platform->closeFile(file);
 }
