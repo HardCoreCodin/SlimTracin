@@ -48,8 +48,8 @@ INLINE bool hitQuad(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
 //    RayHit *hit = &trace->current_hit;
 //    hit->object_type = QuadLightType;
 //
-//    QuadLight *quad_light = scene->quad_lights;
-//    for (u8 i = 0; i < scene->settings.quad_lights; i++, quad_light++)
+//    AreaLight *quad_light = scene->area_lights;
+//    for (u8 i = 0; i < scene->settings.area_lights; i++, quad_light++)
 //        if (hitPlane(quad_light->position, quad_light->normal, Ro, Rd, hit) &&
 //            hit->distance < closest_distance) {
 //
@@ -80,11 +80,11 @@ INLINE bool hitQuad(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
 //    vec3 hit_position_in_plane_space;
 //
 //    RayHit *hit = trace->quad_light_hits;
-//    QuadLight *quad_light = scene->quad_lights;
+//    AreaLight *quad_light = scene->area_lights;
 //
 //    u32 quad_light_hit_count = 0;
 //
-//    for (u32 i = 0; i < scene->settings.quad_lights; i++, quad_light++) {
+//    for (u32 i = 0; i < scene->settings.area_lights; i++, quad_light++) {
 //        if (!hitPlane(quad_light->position, quad_light->normal, Ro, Rd, hit)) continue;
 //
 //        hit_position_in_plane_space = subVec3(hit->position, quad_light->position);

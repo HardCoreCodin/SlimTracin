@@ -126,8 +126,8 @@ void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *
     scene->settings = *settings;
     scene->primitives   = null;
     scene->materials    = null;
-    scene->point_lights = null;
-    scene->quad_lights  = null;
+    scene->lights       = null;
+    scene->area_lights  = null;
     scene->cameras      = null;
     scene->meshes       = null;
     scene->mesh_triangle_counts = null;
@@ -147,9 +147,9 @@ void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *
             scene->mesh_triangle_counts[i] = scene->meshes[i].triangle_count;
         }
     }
-    if (settings->materials)    scene->materials    = (Material*  )allocateMemory(memory, sizeof(Material)   * settings->materials);
-    if (settings->point_lights) scene->point_lights = (PointLight*)allocateMemory(memory, sizeof(PointLight) * settings->point_lights);
-    if (settings->quad_lights)  scene->quad_lights  = (QuadLight* )allocateMemory(memory, sizeof(QuadLight)  * settings->quad_lights);
+    if (settings->materials)   scene->materials    = (Material*  )allocateMemory(memory, sizeof(Material ) * settings->materials);
+    if (settings->lights)      scene->lights       = (Light*     )allocateMemory(memory, sizeof(Light    ) * settings->lights);
+    if (settings->area_lights) scene->area_lights  = (AreaLight* )allocateMemory(memory, sizeof(AreaLight) * settings->area_lights);
 
     if (settings->cameras) {
         scene->cameras = (Camera*)allocateMemory(memory, sizeof(Camera) * settings->cameras);
@@ -221,8 +221,8 @@ void _initApp(Defaults *defaults, void* window_content_memory) {
     memory_size += scene_settings->meshes     * sizeof(u32) * 2;
     memory_size += scene_settings->cameras    * sizeof(Camera);
     memory_size += scene_settings->materials  * sizeof(Material);
-    memory_size += scene_settings->quad_lights  * sizeof(QuadLight);
-    memory_size += scene_settings->point_lights * sizeof(PointLight);
+    memory_size += scene_settings->area_lights * sizeof(AreaLight);
+    memory_size += scene_settings->lights * sizeof(Light);
     memory_size += viewport_settings->hud_line_count * sizeof(HUDLine);
     u32 max_triangle_count = 0;
     u32 max_bvh_depth = 0;

@@ -8,6 +8,8 @@
 #include "./shaders/trace.h"
 #include "./shaders/closest_hit/debug.h"
 #include "./shaders/closest_hit/surface.h"
+//#include "./shaders/closest_hit/classic.h"
+//#include "./shaders/closest_hit/reflection.h"
 #include "./SSB.h"
 
 void setRenderModeString(enum RenderMode mode, String *string) {
@@ -89,11 +91,18 @@ void updateScene(Scene *scene, Viewport *viewport) {
 INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode, u16 x, u16 y, Pixel *pixel) {
     if (hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y)) {
         vec3 color;
+//        u32 material_uses;
         switch (mode) {
-            case RenderMode_Beauty    : color = shadeSurface2(ray, trace, scene); break;
-            case RenderMode_Depth     : color = shadeDepth(trace->closest_hit.distance);          break;
-            case RenderMode_Normals   : color = shadeDirection(trace->closest_hit.normal);        break;
-            case RenderMode_UVs       : color = shadeUV(trace->closest_hit.uv);                   break;
+            case RenderMode_Beauty: color = shadeSurface(ray, trace, scene); break;
+//                material_uses = scene->materials[trace->closest_hit.material_id].uses;
+//                if (material_uses & REFLECTION)   color = shadeReflection(ray, trace, scene);
+//                else if (material_uses & BLINN)   color = shadeBlinn(     ray, trace, scene);
+//                else if (material_uses & PHONG)   color = shadePhong(     ray, trace, scene);
+//                else if (material_uses & LAMBERT) color = shadeLambert(   ray, trace, scene);
+//                break;
+            case RenderMode_Depth  : color = shadeDepth(trace->closest_hit.distance);          break;
+            case RenderMode_Normals: color = shadeDirection(trace->closest_hit.normal);        break;
+            case RenderMode_UVs    : color = shadeUV(trace->closest_hit.uv);                   break;
         }
         if (mode == RenderMode_Beauty)
             setPixelBakedToneMappedColor(pixel, &color);
@@ -149,8 +158,8 @@ __global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode,
                          BVHNode    *mesh_bvh_nodes,
                          Mesh       *meshes,
                          Triangle   *mesh_triangles,
-                         PointLight *point_lights,
-                         QuadLight  *quad_lights,
+                         Light *lights,
+                         AreaLight  *area_lights,
                          Material   *materials,
                          Primitive  *primitives,
 
@@ -170,8 +179,8 @@ __global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode,
     ray.origin = camera_position;
     ray.direction = normVec3(scaleAddVec3(projection_plane.down, y, scaleAddVec3(projection_plane.right, x, projection_plane.start)));
 
-    scene.point_lights = point_lights;
-    scene.quad_lights  = quad_lights;
+    scene.lights = lights;
+    scene.area_lights  = area_lights;
     scene.materials    = materials;
     scene.primitives   = primitives;
     scene.meshes       = meshes;
@@ -225,8 +234,8 @@ void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
             d_mesh_bvh_nodes,
             d_meshes,
             d_triangles,
-            d_point_lights,
-            d_quad_lights,
+            d_lights,
+            d_area_lights,
             d_materials,
             d_primitives,
 

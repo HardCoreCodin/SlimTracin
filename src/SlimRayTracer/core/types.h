@@ -281,16 +281,16 @@ typedef struct AmbientLight{
     vec3 color;
 } AmbientLight;
 
-typedef struct {
+typedef struct Light {
     vec3 attenuation, position_or_direction, color;
     f32 intensity;
     bool is_directional;
-} PointLight;
+} Light;
 
-typedef struct QuadLight {
+typedef struct AreaLight {
     vec3 position, normal, color, U, V, v1, v2, v3, v4;
     f32 A, u_length, v_length;
-} QuadLight;
+} AreaLight;
 
 // Mesh:
 // =====
@@ -335,8 +335,8 @@ typedef struct SceneSettings {
     u32 primitives;
     u32 meshes;
     u32 materials;
-    u32 point_lights;
-    u32 quad_lights;
+    u32 lights;
+    u32 area_lights;
     String file, *mesh_files;
 } SceneSettings;
 
@@ -347,8 +347,8 @@ typedef struct Scene {
 
     Camera *cameras;
     AmbientLight ambient_light;
-    PointLight *point_lights;
-    QuadLight *quad_lights;
+    Light *lights;
+    AreaLight *area_lights;
 
     Material *materials;
     Primitive *primitives;

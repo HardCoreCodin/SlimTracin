@@ -136,18 +136,9 @@ INLINE void setPixelBakedToneMappedColor(Pixel *pixel, vec3 *color) {
 //        color.z = gammaCorrectedApproximately(color.z);    \
 //        setPixelColor(pixel, color)
 
-INLINE f32 sat(f32 value) {
-    value = value > 1.0f ? 1.0f : value;
-    value = value < 0.0f ? 0.0f : value;
-    return value;
-}
 
-INLINE f32 sdot(vec3 a, vec3 b) {
-    return sat(dotVec3(a, b));
-}
-
-INLINE f32 sdotInv(vec3 a, vec3 b) {
-    return sat(-dotVec3(a, b));
+INLINE f32 invDotVec3(vec3 a, vec3 b) {
+    return clampValue(-dotVec3(a, b));
 }
 
 INLINE f32 schlickFresnel(f32 n1, f32 n2, f32 NdotL) {
@@ -156,7 +147,7 @@ INLINE f32 schlickFresnel(f32 n1, f32 n2, f32 NdotL) {
 }
 
 INLINE vec3 reflectWithDot(vec3 V, vec3 N, f32 NdotV) {
-    return addVec3(V, scaleVec3(N, -2 * NdotV));
+    return scaleAddVec3(N, -2 * NdotV, V);
 }
 
 INLINE vec3 refract(vec3 V, vec3 N, f32 NdotV, f32 n1_over_n2) {

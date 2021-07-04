@@ -15,8 +15,8 @@
 
 __device__   u32 d_pixels[MAX_WIDTH * MAX_HEIGHT];
 
-PointLight *d_point_lights;
-QuadLight  *d_quad_lights;
+Light *d_lights;
+AreaLight  *d_area_lights;
 Material   *d_materials;
 Primitive  *d_primitives;
 Mesh       *d_meshes;
@@ -30,8 +30,8 @@ u32 *d_mesh_bvh_node_counts,
 
 void allocateDeviceScene(Scene *scene) {
     u32 total_triangles = 0;
-    if (scene->settings.point_lights) gpuErrchk(cudaMalloc(&d_point_lights, sizeof(PointLight) * scene->settings.point_lights))
-    if (scene->settings.quad_lights)  gpuErrchk(cudaMalloc(&d_quad_lights,  sizeof(QuadLight)  * scene->settings.quad_lights))
+    if (scene->settings.lights) gpuErrchk(cudaMalloc(&d_lights, sizeof(Light) * scene->settings.lights))
+    if (scene->settings.area_lights)  gpuErrchk(cudaMalloc(&d_area_lights,  sizeof(AreaLight)  * scene->settings.area_lights))
     if (scene->settings.primitives)   gpuErrchk(cudaMalloc(&d_primitives,   sizeof(Primitive)  * scene->settings.primitives))
     if (scene->settings.meshes) {
         for (u32 i = 0; i < scene->settings.meshes; i++)
@@ -55,8 +55,8 @@ void uploadPrimitives(Scene *scene) {
 }
 
 void uploadLights(Scene *scene) {
-    if (scene->settings.point_lights) uploadN( scene->point_lights, d_point_lights, scene->settings.point_lights)
-    if (scene->settings.quad_lights)  uploadN( scene->quad_lights,  d_quad_lights,  scene->settings.quad_lights)
+    if (scene->settings.lights) uploadN( scene->lights, d_lights, scene->settings.lights)
+    if (scene->settings.area_lights)  uploadN( scene->area_lights,  d_area_lights,  scene->settings.area_lights)
 }
 
 void uploadScene(Scene *scene) {
@@ -369,8 +369,8 @@ void setDefaultSceneSettings(SceneSettings *settings) {
     settings->cameras = 1;
     settings->primitives = 0;
     settings->materials = 0;
-    settings->point_lights = 0;
-    settings->quad_lights = 0;
+    settings->lights = 0;
+    settings->area_lights = 0;
     settings->meshes = 0;
     settings->mesh_files = null;
     settings->file.char_ptr = null;
@@ -411,8 +411,8 @@ u32 getBVHMemorySize(u32 leaf_count) {
 }
 
 void initTrace(Trace *trace, Scene *scene, Memory *memory) {
-//    trace->quad_light_hits = scene->settings.quad_lights ?
-//            allocateMemory(memory, sizeof(RayHit) * scene->settings.quad_lights) : null;
+//    trace->quad_light_hits = scene->settings.area_lights ?
+//            allocateMemory(memory, sizeof(RayHit) * scene->settings.area_lights) : null;
 
     if (scene->settings.meshes) {
         trace->closest_mesh_hit.object_type = PrimitiveType_Mesh;

@@ -3,60 +3,68 @@
 #include "../trace.h"
 #include "../common.h"
 
-INLINE vec3 shadeReflection(Trace *trace, Scene *scene, SimpleBVHNode *bvh_nodes, Masks *scene_masks, u8 material_id,
-                            vec3 Rd, vec3 P, vec3 N, u8 depth, vec3 out_color) {
-    vec3 color, light_color, RLd, L, H;
-    f32 NdotRd, d, d2, li, diff, spec;
-    Material* material = &scene->materials[material_id];
-    MaterialSpec mat = decodeMaterialSpec(material->uses);
-    f32 di  = material->roughness;
-    f32 si  = material->shininess;
-    f32 exp = material->uses & (u8)BLINN ? 16 : 4;
 
+INLINE vec3 shadeReflection(Ray *ray, Trace *trace, Scene *scene) {
     RayHit *hit = &trace->closest_hit;
+    Light *light;
+    bool has_diffuse;
+    f32 exp, light_distance, light_distance_squared, normal_dot_light_direction;
+    vec3 diffuse, specular, hit_position, normal, light_direction, light_radiance, radiance, half_vector,
+         current_color, color = getVec3Of(0), throughput = getVec3Of(1), ray_direction = ray->direction;
 
-    if (mat.uses.phong || mat.has.reflection) {
-        NdotRd = -sdotInv(N, Rd);
-        RLd = reflectWithDot(Rd, N, NdotRd);
-    }
+    u32 depth = trace->depth;
+    while (depth) {
+        hit_position = ray->origin = hit->position;
+        normal = hit->normal;
+        exp = 16.0f * scene->materials[hit->material_id].shininess;
+        specular    = scene->materials[hit->material_id].specular;
+        has_diffuse = scene->materials[hit->material_id].uses & (u8)LAMBERT;
+        if (has_diffuse)
+            diffuse = scene->materials[hit->material_id].diffuse;
 
-    if (mat.has.reflection) {
-        color = getVec3Of(0);
-        u8 new_hit_depth = depth + 1;
-        if (new_hit_depth < MAX_HIT_DEPTH) {
-            Ray ray;
-            ray.origin = P;
-            ray.direction = RLd;
-            traceSecondaryRay(&ray, trace, scene, bvh_nodes, scene_masks);
-            color = shadeReflection(trace, scene, bvh_nodes, scene_masks, hit->material_id, RLd, hit->position, hit->normal, new_hit_depth, color);
+        current_color = getVec3Of(0);
+        light = scene->lights;
+        for (u32 i = 0; i < scene->settings.lights; i++, light++) {
+            if (light->is_directional) {
+                light_distance = light_distance_squared = INFINITY;
+                light_direction = invertedVec3(light->position_or_direction);
+            } else {
+                light_direction = subVec3(light->position_or_direction, hit_position);
+                light_distance_squared = squaredLengthVec3(light_direction);
+                light_distance = sqrtf(light_distance_squared);
+                light_direction = scaleVec3(light_direction, 1.0f / light_distance);
+            }
+
+            normal_dot_light_direction = dotVec3(normal, light_direction);
+            if (normal_dot_light_direction <= 0)
+                continue;
+
+            ray->direction = light_direction;
+            trace->closest_hit.distance = light_distance;
+            trace->closest_hit.distance_squared = light_distance_squared;
+            if (!inShadow(ray, trace, scene)) {
+                light_radiance = scaleVec3(light->color, light->intensity / light_distance_squared);
+                half_vector = subVec3(light_direction, ray_direction);
+                radiance = scaleVec3(specular, powf(DotVec3(normal, normVec3(half_vector)), exp));
+                if (has_diffuse)
+                    radiance = scaleAddVec3(diffuse, clampValue(normal_dot_light_direction), radiance);
+                current_color = mulAddVec3(radiance, light_radiance, current_color);
+            }
         }
-    } else color = scene->ambient_light.color;
 
-    PointLight *light;
-    Ray ray;
-    ray.origin = P;
-    for (u8 i = 0; i < POINT_LIGHT_COUNT; i++) {
-        light = &scene->point_lights[i];
-        L = subVec3(light->position, P);
+        color = mulAddVec3(current_color, throughput, color);
 
-        d2 = squaredLengthVec3(L);
-        d = sqrtf(d2);
-        L = scaleVec3(L, 1.0f / d);
+        if (--depth) {
+            ray->direction = ray_direction = reflectVec3(ray_direction, normal);
+            ray->origin    = hit_position;
+            if (traceRay(ray, trace, scene)) {
+                throughput = mulVec3(throughput, specular);
+                continue;
+            }
+        }
 
-        ray.direction = L;
-        prepRay(&ray);
-        if (inShadow(&ray, scene, bvh_nodes, scene_masks, d)) continue;
-
-        if (mat.uses.blinn) H = normVec3(subVec3(L, Rd));
-
-        li = light->intensity / d2;
-        diff = mat.has.diffuse  ? (li * di * sdot(N, L)) : 0;
-        spec = mat.has.specular ? (li * si * powf(mat.uses.blinn ? sdot(N, H) : sdot(RLd, L), exp)) : 0;
-
-        light_color = scaleVec3(light->color, diff + spec);
-        color = addVec3(color, light_color);
+        break;
     }
 
-    if (mat.has.diffuse) color = mulVec3(color, material->diffuse_color);
-    return addVec3(out_color, color);
+    return color;
 }

@@ -211,7 +211,5 @@ INLINE mat3 outerVec3(vec3 a, vec3 b) {
 }
 
 INLINE vec3 reflectVec3(vec3 V, vec3 N) {
-    vec3 out = scaleVec3(N, -2 * dotVec3(N, V));
-         out = addVec3(out, V);
-    return out;
+    return scaleAddVec3(N, -2 * dotVec3(N, V), V);
 }

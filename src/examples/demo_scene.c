@@ -4,8 +4,6 @@
 #include "../SlimRayTracer/viewport/navigation.h"
 #include "../SlimRayTracer/viewport/manipulation.h"
 #include "../SlimRayTracer/render/raytracer.h"
-// Or using the single-header file:
-// #include "../SlimRayTracer.h"
 
 enum HUDLineID {
     HUD_LINE__FPS,
@@ -251,6 +249,7 @@ void setupScene(Scene *scene) {
     Material* material = scene->materials;
     for (u32 i = 0; i < scene->settings.materials; i++, material++) {
         material->diffuse = getVec3Of(1);
+        material->specular = getVec3Of(1);
         material->roughness = 1;
         material->shininess = 1;
         material->n1_over_n2 = IOR_AIR / IOR_GLASS;
@@ -259,7 +258,6 @@ void setupScene(Scene *scene) {
 
     phong_material->shininess = 2;
     blinn_material->shininess = 3;
-    reflective_material->diffuse = getVec3Of(0.1f);
     reflective_material->specular = getVec3Of(0.9f);
     phong_material->diffuse.z = 0.4f;
     diffuse_material->diffuse.x = 0.3f;
@@ -267,126 +265,7 @@ void setupScene(Scene *scene) {
     diffuse_material->diffuse.z = 0.5f;
 
     // Back-right cube position:
-    Primitive *primitive = scene->primitives;
-//    primitive->material_id = reflective_material_id;
-//    primitive->position.x = 9;
-//    primitive->position.y = 4;
-//    primitive->position.z = 3;
-//
-//    // Back-left cube position:
-//    primitive++;
-//    primitive->material_id = phong_material_id;
-//    primitive->position.x = 10;
-//    primitive->position.z = 1;
-//
-//    // Front-left cube position:
-//    primitive++;
-//    primitive->material_id = reflective_material_id;
-//    primitive->position.x = -1;
-//    primitive->position.z = -5;
-//
-//    // Front-right cube position:
-//    primitive++;
-//    primitive->material_id = blinn_material_id;
-//    primitive->position.x = 10;
-//    primitive->position.z = -8;
-//
-//    vec3 y_axis;
-//    y_axis.x = 0;
-//    y_axis.y = 1;
-//    y_axis.z = 0;
-//    quat rotation = getRotationAroundAxis(y_axis, 0.3f);
-////    rotation = rotateAroundAxis(rotation, X_AXIS, 0.4f);
-////    rotation = rotateAroundAxis(rotation, Z_AXIS, 0.5f);
-//
-//    u8 radius = 1;
-//    for (u8 i = 0; i < 4; i++, radius++) {
-//        primitive = scene->primitives + i;
-//        primitive->id = i;
-//        primitive->type = PrimitiveType_Box;
-//        primitive->scale = getVec3Of((f32)radius * 0.5f);
-//        primitive->position.x -= 4;
-//        primitive->position.z += 2;
-//        primitive->position.y = radius;
-//        primitive->rotation = rotation;
-//        rotation = mulQuat(rotation, rotation);
-//        primitive->rotation = identity_orientation;
-//    }
-//
-//    // Back-right tetrahedron position:
-//    primitive++;
-//    primitive->material_id = reflective_material_id;
-//    primitive->position.x = 3;
-//    primitive->position.y = 4;
-//    primitive->position.z = 8;
-//
-//    // Back-left tetrahedron position:
-//    primitive++;
-//    primitive->material_id = phong_material_id;
-//    primitive->position.x = 4;
-//    primitive->position.z = 6;
-//
-//    // Front-left tetrahedron position:
-//    primitive++;
-//    primitive->material_id = reflective_material_id;
-//    primitive->position.x = -3;
-//    primitive->position.z = 0;
-//
-//    // Front-right tetrahedron position:
-//    primitive++;
-//    primitive->material_id = blinn_material_id;
-//    primitive->position.x = 4;
-//    primitive->position.z = -3;
-//
-//    radius = 1;
-//
-//    rotation = getRotationAroundAxis(y_axis, 0.3f);
-//    for (u8 i = 4; i < 8; i++, radius++) {
-//        primitive = scene->primitives + i;
-//        primitive->id = i;
-//        primitive->type = PrimitiveType_Tetrahedron;
-//        primitive->scale = getVec3Of((f32)radius * 0.5f);
-//        primitive->position.x -= 4;
-//        primitive->position.z += 2;
-//        if (i > 4) primitive->position.y = radius;
-//        primitive->rotation = rotation;
-//        rotation = mulQuat(rotation, rotation);
-//    }
-//
-//    // Back-left sphere:
-//    primitive++;
-//    primitive->material_id = 1;
-//    primitive->position.x = -1;
-//    primitive->position.z = 5;
-//
-//    // Back-right sphere:
-//    primitive++;
-//    primitive->material_id = 2;
-//    primitive->position.x = 4;
-//    primitive->position.z = 6;
-//
-//    // Front-left sphere:
-//    primitive++;
-//    primitive->material_id = 4;
-//    primitive->position.x = -3;
-//    primitive->position.z = 0;
-//
-//    // Front-right sphere:
-//    primitive++;
-//    primitive->material_id = 5;
-//    primitive->position.x = 4;
-//    primitive->position.z = -8;
-//
-//    radius = 1;
-//    for (u8 i = 8; i < 12; i++, radius++) {
-//        primitive = scene->primitives + i;
-//        primitive->id = i;
-//        primitive->type = PrimitiveType_Sphere;
-//        primitive->scale = getVec3Of(radius);
-//        primitive->position.y = radius;
-//        primitive->rotation = identity_orientation;
-//    }
-
+    Primitive *primitive;
     vec3 scale = getVec3Of(1);
     for (u8 i = 0; i < 2; i++) {
         primitive = scene->primitives + i;
@@ -399,18 +278,10 @@ void setupScene(Scene *scene) {
     }
 
     // Bottom quad:
-    primitive = scene->primitives;// + 12;
+    primitive = scene->primitives;
     primitive->scale.x = 40;
     primitive->scale.z = 40;
 
-//    // Top quad:
-//    primitive++;
-//    primitive->scale.x = 40;
-//    primitive->scale.z = 40;
-//    primitive->position.y = 40;
-//    primitive->rotation.axis.x = 1;
-//    primitive->rotation.amount = 0;
-//
     // Left quad:
     primitive++;
     primitive->scale.x = 20;
@@ -419,37 +290,10 @@ void setupScene(Scene *scene) {
     primitive->position.y = 20;
     primitive->rotation.axis.z = -HALF_SQRT2;
     primitive->rotation.amount = +HALF_SQRT2;
-//
-//    // Right quad:
-//    primitive++;
-//    primitive->scale.x = 20;
-//    primitive->scale.z = 40;
-//    primitive->position.x = 40;
-//    primitive->position.y = 20;
-//    primitive->rotation.axis.z = HALF_SQRT2;
-//    primitive->rotation.amount = HALF_SQRT2;
-//
-//    // Back quad:
-//    primitive++;
-//    primitive->scale.x = 40;
-//    primitive->scale.z = 20;
-//    primitive->position.z = -40;
-//    primitive->position.y = +20;
-//    primitive->rotation.axis.x = HALF_SQRT2;
-//    primitive->rotation.amount = HALF_SQRT2;
-//
-//    // Front quad:
-//    primitive++;
-//    primitive->scale.x = 40;
-//    primitive->scale.z = 20;
-//    primitive->position.z = 40;
-//    primitive->position.y = 20;
-//    primitive->rotation.axis.x = -HALF_SQRT2;
-//    primitive->rotation.amount = +HALF_SQRT2;
 
-    PointLight *key_light = scene->point_lights;
-    PointLight *fill_light = scene->point_lights + 1;
-    PointLight *rim_light = scene->point_lights + 2;
+    Light *key_light = scene->lights;
+    Light *fill_light = scene->lights + 1;
+    Light *rim_light = scene->lights + 2;
 
     key_light->position_or_direction.x = 10;
     key_light->position_or_direction.y = 10;
@@ -474,6 +318,7 @@ void setupScene(Scene *scene) {
     key_light->intensity = 1.3f * 3;
     rim_light->intensity = 1.5f * 3;
     fill_light->intensity = 1.1f * 3;
+    key_light->is_directional = fill_light->is_directional = rim_light->is_directional = false;
 
     // Suzanne 1:
     primitive++;
@@ -504,21 +349,27 @@ void onResize(u16 width, u16 height) {
 String file_paths[2];
 char string_buffers[3][100];
 void initApp(Defaults *defaults) {
-    String *scene_file = &defaults->settings.scene.file;
-    String *mesh_file1 = &file_paths[0];
-    String *mesh_file2 = &file_paths[1];
+    char* this_file   = (char*)__FILE__;
+    char* monkey_file = (char*)"suzanne.mesh";
+    char* dragon_file = (char*)"dragon.mesh";
+    char* scene_file  = (char*)"this.scene";
 
-    mesh_file1->char_ptr = string_buffers[0];
-    mesh_file2->char_ptr = string_buffers[1];
-    scene_file->char_ptr = string_buffers[2];
+    String *scene  = &defaults->settings.scene.file;
+    String *monkey = &file_paths[0];
+    String *dragon = &file_paths[1];
 
-    u32 offset = getDirectoryLength((char*)__FILE__);
-    mergeString(mesh_file1, (char*)__FILE__, (char*)"suzanne.mesh", offset);
-    mergeString(mesh_file2, (char*)__FILE__, (char*)"dragon.mesh",  offset);
-    mergeString(scene_file, (char*)__FILE__, (char*)"this.scene",   offset);
+    monkey->char_ptr = string_buffers[0];
+    dragon->char_ptr = string_buffers[1];
+    scene->char_ptr  = string_buffers[2];
+
+    u32 dir_len = getDirectoryLength(this_file);
+    mergeString(monkey, this_file, monkey_file, dir_len);
+    mergeString(dragon, this_file, dragon_file, dir_len);
+    mergeString(scene,  this_file, scene_file,  dir_len);
+
     defaults->settings.scene.meshes = 2;
     defaults->settings.scene.mesh_files = file_paths;
-    defaults->settings.scene.point_lights = 3;
+    defaults->settings.scene.lights = 3;
     defaults->settings.scene.materials    = 6;
     defaults->settings.scene.primitives   = 5;
     defaults->settings.viewport.hud_line_count = 9;
