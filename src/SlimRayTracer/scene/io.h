@@ -90,7 +90,9 @@ void saveMeshToFile(Mesh *mesh, char* file_path, Platform *platform) {
 void loadSceneFromFile(Scene *scene, char* file_path, Platform *platform) {
     void *file = platform->openFileForReading(file_path);
 
+    String current_file = scene->settings.file;
     platform->readFromFile(&scene->settings, sizeof(SceneSettings), file);
+    scene->settings.file = current_file;
 
     if (scene->cameras)
         for (u32 i = 0; i < scene->settings.cameras; i++) {

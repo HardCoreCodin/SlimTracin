@@ -154,10 +154,9 @@ INLINE vec3 refract(vec3 V, vec3 N, f32 NdotV, f32 n1_over_n2) {
     f32 c = n1_over_n2*n1_over_n2 * (1 - (NdotV*NdotV));
     if (c + EPS > 1) return reflectWithDot(V, N, NdotV);
 
-    c = sqrtf(1 - c);
-    vec3 a = scaleVec3(V, n1_over_n2);
-    vec3 b = scaleVec3(N, n1_over_n2 * -NdotV - c);
-    return normVec3(addVec3(a, b));
+    return normVec3(
+            scaleAddVec3(V, n1_over_n2,
+                         scaleVec3(N, n1_over_n2 * -NdotV - sqrtf(1 - c))));
 }
 
 INLINE bool isTransparentUV(vec2 uv) {

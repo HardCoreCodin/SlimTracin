@@ -20,6 +20,84 @@ enum HUDLineID {
 u64 scene_io_time;
 bool last_scene_io_is_save;
 
+enum MaterialIDs {
+    MaterialID_Wall,
+    MaterialID_Diffuse,
+    MaterialID_Phong,
+    MaterialID_Blinn,
+    MaterialID_Reflective,
+    MaterialID_Refractive
+};
+
+void setupLights(Scene *scene) {
+    scene->ambient_light.color.x = 0.008f;
+    scene->ambient_light.color.y = 0.008f;
+    scene->ambient_light.color.z = 0.014f;
+
+    Light *key_light  = scene->lights;
+    Light *fill_light = scene->lights + 1;
+    Light *rim_light  = scene->lights + 2;
+
+    key_light->position_or_direction.x = 10;
+    key_light->position_or_direction.y = 10;
+    key_light->position_or_direction.z = -5;
+    rim_light->position_or_direction.x = 2;
+    rim_light->position_or_direction.y = 5;
+    rim_light->position_or_direction.z = 12;
+    fill_light->position_or_direction.x = -10;
+    fill_light->position_or_direction.y = 10;
+    fill_light->position_or_direction.z = -5;
+
+    key_light->color.x = 1;
+    key_light->color.y = 1;
+    key_light->color.z = 0.65f;
+    rim_light->color.x = 1;
+    rim_light->color.y = 0.25f;
+    rim_light->color.z = 0.25f;
+    fill_light->color.x = 0.65f;
+    fill_light->color.y = 0.65f;
+    fill_light->color.z = 1;
+
+    key_light->intensity = 1.3f * 3;
+    rim_light->intensity = 1.5f * 3;
+    fill_light->intensity = 1.1f * 3;
+    key_light->is_directional = fill_light->is_directional = rim_light->is_directional = false;
+}
+
+void setupMaterials(Scene *scene) {
+    Material *walls_material     = scene->materials + MaterialID_Wall,
+            *diffuse_material    = scene->materials + MaterialID_Diffuse,
+            *phong_material      = scene->materials + MaterialID_Phong,
+            *blinn_material      = scene->materials + MaterialID_Blinn,
+            *reflective_material = scene->materials + MaterialID_Reflective,
+            *refractive_material = scene->materials + MaterialID_Refractive;
+
+    walls_material->uses = LAMBERT;
+    diffuse_material->uses = LAMBERT;
+    phong_material->uses = LAMBERT | PHONG | TRANSPARENCY;
+    blinn_material->uses = LAMBERT | BLINN;
+    reflective_material->uses = BLINN | REFLECTION;
+    refractive_material->uses = BLINN | REFRACTION;
+
+    Material* material = scene->materials;
+    for (u32 i = 0; i < scene->settings.materials; i++, material++) {
+        material->diffuse = getVec3Of(1);
+        material->specular = getVec3Of(1);
+        material->roughness = 1;
+        material->shininess = 1;
+        material->n1_over_n2 = IOR_AIR / IOR_GLASS;
+        material->n2_over_n1 = IOR_GLASS / IOR_AIR;
+    }
+
+    phong_material->shininess = 2;
+    blinn_material->shininess = 3;
+    reflective_material->specular = refractive_material->specular = getVec3Of(0.9f);
+    phong_material->diffuse.z = 0.4f;
+    diffuse_material->diffuse.x = 0.3f;
+    diffuse_material->diffuse.z = 0.2f;
+    diffuse_material->diffuse.z = 0.5f;
+}
+
 void setDimensionsInHUD(HUD *hud, i32 width, i32 height) {
     printNumberIntoString(width,  &hud->lines[HUD_LINE__Width ].value);
     printNumberIntoString(height, &hud->lines[HUD_LINE__Height].value);
@@ -105,6 +183,8 @@ void setupViewport(Viewport *viewport) {
     rotateXform3(camera_xform, 0, -0.2f, 0);
 
     initTrace(&viewport->trace, &app->scene, &app->memory);
+
+    scene_io_time = 0;
 }
 void updateViewport(Viewport *viewport, Mouse *mouse) {
     if (mouse->is_captured) {
@@ -150,9 +230,9 @@ void updateAndRender() {
     drawSelection(scene, viewport, controls);
 
     if (viewport->settings.show_hud) {
-        printNumberIntoString(app->time.timers.update.average_frames_per_second, &viewport->hud.lines[0].value);
-        printNumberIntoString((i32)viewport->trace.depth, &viewport->hud.lines[4].value);
-        printNumberIntoString(scene->selection->primitive ? scene->selection->primitive->material_id : 0, &viewport->hud.lines[5].value);
+        printNumberIntoString(app->time.timers.update.average_frames_per_second, &viewport->hud.lines[HUD_LINE__FPS].value);
+        printNumberIntoString((i32)viewport->trace.depth, &viewport->hud.lines[HUD_LINE__Bounces].value);
+        printNumberIntoString(scene->selection->primitive ? scene->selection->primitive->material_id : 0, &viewport->hud.lines[HUD_LINE__MatID].value);
         drawHUD(viewport->frame_buffer, &viewport->hud);
     }
     f64 now = (f64)app->time.getTicks();
@@ -162,15 +242,16 @@ void updateAndRender() {
         char *message;
         RGBA color;
         if (last_scene_io_is_save) {
-            message = (char*)"Scene saved to: this.scene";
+            message = (char*)"   Scene saved to: ";
             color = Color(Yellow);
         } else {
-            message = (char*)"Scene loaded from: this.scene";
+            message = (char*)"Scene loaded from: ";
             color = Color(Cyan);
         }
-        i32 x = canvas->dimensions.width / 2 - 150;
+        i32 x = 10;
         i32 y = 20;
         drawText(canvas, color, message, x, y);
+        drawText(canvas, color, scene->settings.file.char_ptr, x + 100, y);
     }
     resetMouseChanges(mouse);
     endFrameTimer(timer);
@@ -218,170 +299,9 @@ void onKeyChanged(u8 key, bool is_pressed) {
                                 &viewport->hud.lines[HUD_LINE__Mode].value.string);
     }
 }
-void setupScene(Scene *scene) {
-    scene->ambient_light.color.x = 0.008f;
-    scene->ambient_light.color.y = 0.008f;
-    scene->ambient_light.color.z = 0.014f;
 
-    u8 wall_material_id = 0;
-    u8 diffuse_material_id = 1;
-    u8 phong_material_id = 2;
-    u8 blinn_material_id = 3;
-    u8 reflective_material_id = 4;
-    u8 refractive_material_id = 5;
-
-    Material *walls_material                 = scene->materials + wall_material_id,
-            *diffuse_material               = scene->materials + diffuse_material_id,
-            *phong_material                 = scene->materials + phong_material_id,
-            *blinn_material                 = scene->materials + blinn_material_id,
-            *reflective_material            = scene->materials + reflective_material_id,
-            *refractive_material            = scene->materials + refractive_material_id;
-
-    walls_material->uses = LAMBERT;
-    diffuse_material->uses = LAMBERT;
-    phong_material->uses = LAMBERT | PHONG | TRANSPARENCY;
-    blinn_material->uses = LAMBERT | BLINN;
-    reflective_material->uses = BLINN | REFLECTION;
-    refractive_material->uses = BLINN | REFRACTION;
-
-    quat identity_orientation = getIdentityQuaternion();
-
-    Material* material = scene->materials;
-    for (u32 i = 0; i < scene->settings.materials; i++, material++) {
-        material->diffuse = getVec3Of(1);
-        material->specular = getVec3Of(1);
-        material->roughness = 1;
-        material->shininess = 1;
-        material->n1_over_n2 = IOR_AIR / IOR_GLASS;
-        material->n2_over_n1 = IOR_GLASS / IOR_AIR;
-    }
-
-    phong_material->shininess = 2;
-    blinn_material->shininess = 3;
-    reflective_material->specular = getVec3Of(0.9f);
-    phong_material->diffuse.z = 0.4f;
-    diffuse_material->diffuse.x = 0.3f;
-    diffuse_material->diffuse.z = 0.2f;
-    diffuse_material->diffuse.z = 0.5f;
-
-    // Back-right cube position:
-    Primitive *primitive;
-    vec3 scale = getVec3Of(1);
-    for (u8 i = 0; i < 2; i++) {
-        primitive = scene->primitives + i;
-        primitive->id = i;
-        primitive->type = PrimitiveType_Quad;
-        primitive->scale = scale;
-        primitive->material_id = 0;
-        primitive->position = getVec3Of(0);
-        primitive->rotation = identity_orientation;
-    }
-
-    // Bottom quad:
-    primitive = scene->primitives;
-    primitive->scale.x = 40;
-    primitive->scale.z = 40;
-
-    // Left quad:
-    primitive++;
-    primitive->scale.x = 20;
-    primitive->scale.z = 40;
-    primitive->position.x = -40;
-    primitive->position.y = 20;
-    primitive->rotation.axis.z = -HALF_SQRT2;
-    primitive->rotation.amount = +HALF_SQRT2;
-
-    Light *key_light = scene->lights;
-    Light *fill_light = scene->lights + 1;
-    Light *rim_light = scene->lights + 2;
-
-    key_light->position_or_direction.x = 10;
-    key_light->position_or_direction.y = 10;
-    key_light->position_or_direction.z = -5;
-    rim_light->position_or_direction.x = 2;
-    rim_light->position_or_direction.y = 5;
-    rim_light->position_or_direction.z = 12;
-    fill_light->position_or_direction.x = -10;
-    fill_light->position_or_direction.y = 10;
-    fill_light->position_or_direction.z = -5;
-
-    key_light->color.x = 1;
-    key_light->color.y = 1;
-    key_light->color.z = 0.65f;
-    rim_light->color.x = 1;
-    rim_light->color.y = 0.25f;
-    rim_light->color.z = 0.25f;
-    fill_light->color.x = 0.65f;
-    fill_light->color.y = 0.65f;
-    fill_light->color.z = 1;
-
-    key_light->intensity = 1.3f * 3;
-    rim_light->intensity = 1.5f * 3;
-    fill_light->intensity = 1.1f * 3;
-    key_light->is_directional = fill_light->is_directional = rim_light->is_directional = false;
-
-    // Suzanne 1:
-    primitive++;
-    primitive->position.x = 10;
-    primitive->position.z = 5;
-    primitive->position.y = 4;
-    primitive->type = PrimitiveType_Mesh;
-    primitive->color = Magenta;
-
-    primitive++;
-    *primitive = *(primitive - 1);
-    primitive->position.x = -10;
-    primitive->color = Cyan;
-
-    primitive++;
-    *primitive = *(primitive - 1);
-    primitive->id = 1;
-    primitive->position.z = 10;
-    primitive->position.y = 8;
-    primitive->color = Blue;
-}
 
 void onResize(u16 width, u16 height) {
     setDimensionsInHUD(&app->viewport.hud, width, height);
     updateSceneSSB(&app->scene, &app->viewport);
-}
-
-String file_paths[2];
-char string_buffers[3][100];
-void initApp(Defaults *defaults) {
-    char* this_file   = (char*)__FILE__;
-    char* monkey_file = (char*)"suzanne.mesh";
-    char* dragon_file = (char*)"dragon.mesh";
-    char* scene_file  = (char*)"this.scene";
-
-    String *scene  = &defaults->settings.scene.file;
-    String *monkey = &file_paths[0];
-    String *dragon = &file_paths[1];
-
-    monkey->char_ptr = string_buffers[0];
-    dragon->char_ptr = string_buffers[1];
-    scene->char_ptr  = string_buffers[2];
-
-    u32 dir_len = getDirectoryLength(this_file);
-    mergeString(monkey, this_file, monkey_file, dir_len);
-    mergeString(dragon, this_file, dragon_file, dir_len);
-    mergeString(scene,  this_file, scene_file,  dir_len);
-
-    defaults->settings.scene.meshes = 2;
-    defaults->settings.scene.mesh_files = file_paths;
-    defaults->settings.scene.lights = 3;
-    defaults->settings.scene.materials    = 6;
-    defaults->settings.scene.primitives   = 5;
-    defaults->settings.viewport.hud_line_count = 9;
-    defaults->settings.viewport.hud_default_color = Green;
-
-    app->on.keyChanged               = onKeyChanged;
-    app->on.mouseButtonDown          = onButtonDown;
-    app->on.mouseButtonDoubleClicked = onDoubleClick;
-    app->on.windowResize  = onResize;
-    app->on.windowRedraw  = updateAndRender;
-    app->on.sceneReady    = setupScene;
-    app->on.viewportReady = setupViewport;
-
-    scene_io_time = 0;
 }

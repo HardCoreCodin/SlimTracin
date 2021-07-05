@@ -5,7 +5,7 @@
 
 INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
     RayHit *hit = &trace->closest_hit;
-    f32 d, d2, NdotL;
+    f32 d, d2, NdotL, ior;
     vec3 RLd, Rd = ray->direction;
     vec3 L, N, P, H, radiance;
     Material M;
@@ -15,9 +15,10 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
     vec3 current_color, color = getVec3Of(0), throughput = getVec3Of(1);
     u32 depth = trace->depth;
     while (depth) {
-        ray->origin = P = hit->position;
-        N = hit->normal;
         M = scene->materials[hit->material_id];
+        P = ray->origin = hit->position;
+        N = hit->normal;
+        ior = hit->from_behind ? M.n1_over_n2 : M.n2_over_n1;
 
         mat = decodeMaterialSpec(M.uses);
         bool is_ref = mat.has.reflection || mat.has.refraction;
@@ -58,8 +59,11 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
         color = mulAddVec3(current_color, throughput, color);
 
         if (is_ref && --depth) {
-            Rd = reflectVec3(Rd, N);
-            ray->origin    = P;
+            if (mat.has.reflection)
+                Rd = reflectVec3(Rd, N);
+            else
+                Rd = refract(Rd, N, DotVec3(Rd, N), ior);
+            ray->origin    = scaleAddVec3(Rd, TRACE_OFFSET, P);
             ray->direction = Rd;
             if (traceRay(ray, trace, scene)) {
                 throughput = mulVec3(throughput, M.specular);

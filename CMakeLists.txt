@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.8)
 
-project(SlimRayTracer_demo_scene)
-add_executable(SlimRayTracer_demo_scene WIN32 src/examples/demo_scene.c)
-set_target_properties(SlimRayTracer_demo_scene PROPERTIES C_STANDARD 90)
+project(SlimRayTracer_1_shapes)
+add_executable(SlimRayTracer_1_shapes WIN32 src/examples/1_shapes.c)
+set_target_properties(SlimRayTracer_1_shapes PROPERTIES C_STANDARD 90)
+
+project(SlimRayTracer_2_mesh)
+add_executable(SlimRayTracer_2_meshes WIN32 src/examples/2_meshes.c)
+set_target_properties(SlimRayTracer_2_meshes PROPERTIES C_STANDARD 90)
 
 set(CMAKE_CUDA_STANDARD 11)
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
@@ -11,9 +15,13 @@ endif()
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CUDA_VERBOSE_BUILD ON)
 
-project(SlimRayTracer_demo_sceneXPU CUDA)
-add_executable(SlimRayTracer_demo_sceneXPU WIN32 src/examples/demo_scene.cu)
-set_target_properties(SlimRayTracer_demo_sceneXPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON C_STANDARD 90)
+project(SlimRayTracer_1_shapes_XPU CUDA)
+add_executable(SlimRayTracer_1_shapes_XPU WIN32 src/examples/1_shapes.cu)
+set_target_properties(SlimRayTracer_1_shapes_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON C_STANDARD 90)
+
+project(SlimRayTracer_2_mesh_XPU CUDA)
+add_executable(SlimRayTracer_2_meshes_XPU WIN32 src/examples/2_meshes.cu)
+set_target_properties(SlimRayTracer_2_meshes_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON C_STANDARD 90)
 
 project(obj2mesh)
 add_executable(obj2mesh src/obj2mesh.c)
