@@ -25,6 +25,8 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
     u32 hit_primitive_id, *primitive_id = primitive_ids;
     for (u32 i = 0; i < primitive_count; i++, primitive_id++) {
         primitive = scene->primitives + *primitive_id;
+        if (any_hit && !(primitive->flags & IS_SHADOWING))
+            continue;
         if (check_visibility) {
             if (!(primitive->flags & IS_VISIBLE))
                 continue;
@@ -52,9 +54,6 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
 
                 prePrepRay(&trace->local_space_ray);
                 current_found = traceMesh(trace, scene->meshes + primitive->id, any_hit);
-//                current_found = any_hit ?
-//                        traceMeshAny(trace, scene->meshes + primitive->id) :
-//                        traceMeshAll(trace, scene->meshes + primitive->id);
                 if (current_found) *hit = trace->closest_mesh_hit;
                 break;
             default:
@@ -62,6 +61,9 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
         }
 
         if (current_found) {
+            if (any_hit && hit->from_behind && scene->materials[hit->material_id].uses & REFRACTION)
+                continue;
+
             hit->position       = convertPositionToWorldSpace(hit->position, primitive);
             hit->distance_squared = squaredLengthVec3(subVec3(hit->position, ray->origin));
             if (hit->distance_squared < closest_hit->distance_squared) {

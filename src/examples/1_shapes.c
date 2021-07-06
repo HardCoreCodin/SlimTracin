@@ -2,190 +2,67 @@
 #include "../SlimRayTracer/viewport/hud.h"
 #include "./_common.h"
 
+quat rotation, x_rotation, y_rotation, z_rotation;
+
+void onUpdate(Scene *scene, f32 delta_time) {
+    quat adj_rotation = rotation;
+    adj_rotation.amount /= delta_time;
+
+    Primitive *primitive = scene->primitives;
+    primitive->rotation = normQuat(mulQuat(primitive->rotation, adj_rotation));
+    primitive++;
+    primitive->rotation = normQuat(mulQuat(primitive->rotation, adj_rotation));
+}
+
 void setupScene(Scene *scene) {
     setupLights(scene);
     setupMaterials(scene);
 
-    // Back-right cube position:
+    vec3 axis;
+    axis.x = 1;
+    axis.y = 0;
+    axis.z = 0;
+    x_rotation = getRotationAroundAxis(axis, 0.02f);
+    axis.x = 0;
+    axis.y = 1;
+    y_rotation = getRotationAroundAxis(axis, 0.04f);
+    axis.y = 0;
+    axis.z = 1;
+    z_rotation = getRotationAroundAxis(axis, 0.06f);
+
+    rotation = normQuat(mulQuat(x_rotation, y_rotation));
+
     Primitive *primitive = scene->primitives;
-    primitive->material_id = MaterialID_Reflective;
-    primitive->position.x = 9;
-    primitive->position.y = 4;
+    primitive->type = PrimitiveType_Box;
+    primitive->position.x = -9;
+    primitive->position.y = 3;
     primitive->position.z = 3;
-
-    // Back-left cube position:
-    primitive++;
-    primitive->material_id = MaterialID_Phong;
-    primitive->position.x = 10;
-    primitive->position.z = 1;
-
-    // Front-left cube position:
-    primitive++;
+    primitive->rotation = rotation;
+    primitive->scale = getVec3Of(2.5f);
     primitive->material_id = MaterialID_Refractive;
-    primitive->position.x = -1;
-    primitive->position.z = -5;
 
-    // Front-right cube position:
+    rotation = normQuat(mulQuat(rotation, z_rotation));
+
     primitive++;
-    primitive->material_id = MaterialID_Blinn;
-    primitive->position.x = 10;
-    primitive->position.z = -8;
-
-    vec3 y_axis;
-    y_axis.x = 0;
-    y_axis.y = 1;
-    y_axis.z = 0;
-    quat rotation = getRotationAroundAxis(y_axis, 0.3f);
-//    rotation = rotateAroundAxis(rotation, y_axis, 0.4f);
-//    rotation = rotateAroundAxis(rotation, y_axis, 0.5f);
-
-    u8 radius = 1;
-    for (u8 i = 0; i < 4; i++, radius++) {
-        primitive = scene->primitives + i;
-        primitive->id = i;
-        primitive->type = PrimitiveType_Box;
-        primitive->scale = getVec3Of((f32)radius * 0.5f);
-        primitive->position.x -= 4;
-        primitive->position.z += 2;
-        primitive->position.y = radius;
-        primitive->rotation = rotation;
-        rotation = mulQuat(rotation, rotation);
-        primitive->rotation = getIdentityQuaternion();
-    }
-
-    // Back-right tetrahedron position:
-    primitive++;
-    primitive->material_id = MaterialID_Reflective;
-    primitive->position.x = 3;
+    primitive->type = PrimitiveType_Tetrahedron;
+    primitive->position.x = -3;
     primitive->position.y = 4;
-    primitive->position.z = 8;
-
-    // Back-left tetrahedron position:
-    primitive++;
-    primitive->material_id = MaterialID_Phong;
-    primitive->position.x = 4;
-    primitive->position.z = 6;
-
-    // Front-left tetrahedron position:
-    primitive++;
+    primitive->position.z = 12;
+    primitive->rotation = rotation;
+    primitive->scale = getVec3Of(2.5f);
     primitive->material_id = MaterialID_Refractive;
-    primitive->position.x = -3;
-    primitive->position.z = 0;
 
-    // Front-right tetrahedron position:
     primitive++;
-    primitive->material_id = MaterialID_Blinn;
-    primitive->position.x = 4;
-    primitive->position.z = -3;
+    primitive->type = PrimitiveType_Sphere;
+    primitive->scale = getVec3Of(2.5f);
+    primitive->position.x = 3;
+    primitive->position.y = 3;
+    primitive->material_id = MaterialID_Refractive;
 
-    radius = 1;
-
-    rotation = getRotationAroundAxis(y_axis, 0.3f);
-    for (u8 i = 4; i < 8; i++, radius++) {
-        primitive = scene->primitives + i;
-        primitive->id = i;
-        primitive->type = PrimitiveType_Tetrahedron;
-        primitive->scale = getVec3Of((f32)radius * 0.5f);
-        primitive->position.x -= 4;
-        primitive->position.z += 2;
-        if (i > 4) primitive->position.y = radius;
-        primitive->rotation = rotation;
-        rotation = mulQuat(rotation, rotation);
-    }
-
-    // Back-left sphere:
     primitive++;
-    primitive->material_id = 1;
-    primitive->position.x = -1;
-    primitive->position.z = 5;
-
-    // Back-right sphere:
-    primitive++;
-    primitive->material_id = 2;
-    primitive->position.x = 4;
-    primitive->position.z = 6;
-
-    // Front-left sphere:
-    primitive++;
-    primitive->material_id = 4;
-    primitive->position.x = -3;
-    primitive->position.z = 0;
-
-    // Front-right sphere:
-    primitive++;
-    primitive->material_id = 5;
-    primitive->position.x = 4;
-    primitive->position.z = -8;
-
-    radius = 1;
-    for (u8 i = 8; i < 12; i++, radius++) {
-        primitive = scene->primitives + i;
-        primitive->id = i;
-        primitive->type = PrimitiveType_Sphere;
-        primitive->scale = getVec3Of(radius);
-        primitive->position.y = radius;
-        primitive->rotation = getIdentityQuaternion();
-    }
-
-    vec3 scale = getVec3Of(1);
-    for (u8 i = 12; i < 18; i++) {
-        primitive = scene->primitives + i;
-        primitive->id = i;
-        primitive->type = PrimitiveType_Quad;
-        primitive->scale = scale;
-        primitive->material_id = 0;
-        primitive->position = getVec3Of(0);
-        primitive->rotation = getIdentityQuaternion();
-    }
-
-    // Bottom quad:
-    primitive = scene->primitives + 12;
+    primitive->type = PrimitiveType_Quad;
     primitive->scale.x = 40;
     primitive->scale.z = 40;
-
-    // Top quad:
-    primitive++;
-    primitive->scale.x = 40;
-    primitive->scale.z = 40;
-    primitive->position.y = 40;
-    primitive->rotation.axis.x = 1;
-    primitive->rotation.amount = 0;
-
-    // Left quad:
-    primitive++;
-    primitive->scale.x = 20;
-    primitive->scale.z = 40;
-    primitive->position.x = -40;
-    primitive->position.y = 20;
-    primitive->rotation.axis.z = -HALF_SQRT2;
-    primitive->rotation.amount = +HALF_SQRT2;
-
-    // Right quad:
-    primitive++;
-    primitive->scale.x = 20;
-    primitive->scale.z = 40;
-    primitive->position.x = 40;
-    primitive->position.y = 20;
-    primitive->rotation.axis.z = HALF_SQRT2;
-    primitive->rotation.amount = HALF_SQRT2;
-
-    // Back quad:
-    primitive++;
-    primitive->scale.x = 40;
-    primitive->scale.z = 20;
-    primitive->position.z = -40;
-    primitive->position.y = +20;
-    primitive->rotation.axis.x = HALF_SQRT2;
-    primitive->rotation.amount = HALF_SQRT2;
-
-    // Front quad:
-    primitive++;
-    primitive->scale.x = 40;
-    primitive->scale.z = 20;
-    primitive->position.z = 40;
-    primitive->position.y = 20;
-    primitive->rotation.axis.x = -HALF_SQRT2;
-    primitive->rotation.amount = +HALF_SQRT2;
 }
 
 char string_buffer[100];
@@ -200,7 +77,7 @@ void initApp(Defaults *defaults) {
 
     defaults->settings.scene.lights = 3;
     defaults->settings.scene.materials    = 6;
-    defaults->settings.scene.primitives   = 18;
+    defaults->settings.scene.primitives   = 4;
     defaults->settings.viewport.hud_line_count = 9;
     defaults->settings.viewport.hud_default_color = Green;
 

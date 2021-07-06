@@ -34,10 +34,12 @@ void setupScene(Scene *scene) {
 
     // Suzanne 1:
     primitive++;
+    primitive->id = 0;
     primitive->position.x = 10;
     primitive->position.z = 5;
     primitive->position.y = 4;
     primitive->type = PrimitiveType_Mesh;
+    primitive->material_id = MaterialID_Refractive;
     primitive->color = Magenta;
 
     primitive++;
@@ -90,3 +92,4 @@ void initApp(Defaults *defaults) {
     app->on.sceneReady    = setupScene;
     app->on.viewportReady = setupViewport;
 }
+void onUpdate(Scene *scene, f32 delta_time) {}

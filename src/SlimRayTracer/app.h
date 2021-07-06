@@ -161,8 +161,10 @@ void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *
     if (settings->primitives) {
         scene->primitives = (Primitive*)allocateMemory(memory, sizeof(Primitive) * settings->primitives);
         if (scene->primitives)
-            for (u32 i = 0; i < settings->primitives; i++)
+            for (u32 i = 0; i < settings->primitives; i++) {
                 initPrimitive(scene->primitives + i);
+                scene->primitives[i].id = i;
+            }
     }
 
     initBVH(&scene->bvh, settings->primitives, memory);
@@ -260,4 +262,8 @@ void _initApp(Defaults *defaults, void* window_content_memory) {
     if (app->on.viewportReady) app->on.viewportReady(viewport);
 }
 
+#ifdef __linux__
+//linux code goes here
+#elif _WIN32
 #include "./platforms/win32.h"
+#endif

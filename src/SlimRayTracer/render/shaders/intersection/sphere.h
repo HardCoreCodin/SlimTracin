@@ -77,7 +77,7 @@ INLINE bool hitSphere(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
             return false;
     }
 
-    hit->from_behind = false;
+    hit->from_behind = has_inner_hit && !has_outer_hit;
     hit->normal = hit->position;
 
     return true;

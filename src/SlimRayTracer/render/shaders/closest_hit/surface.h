@@ -5,9 +5,9 @@
 
 INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
     RayHit *hit = &trace->closest_hit;
-    f32 d, d2, NdotL, ior;
+    f32 d, d2, NdotL, NdotRd, ior;
     vec3 RLd, Rd = ray->direction;
-    vec3 L, N, P, H, radiance;
+    vec3 L, LI, N, P, H, radiance;
     Material M;
     MaterialSpec mat;
     Light *light;
@@ -17,12 +17,15 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
     while (depth) {
         M = scene->materials[hit->material_id];
         P = ray->origin = hit->position;
-        N = hit->normal;
-        ior = hit->from_behind ? M.n1_over_n2 : M.n2_over_n1;
+        N = hit->from_behind ? invertedVec3(hit->normal) : hit->normal;
+        ior = hit->from_behind ? M.n2_over_n1 : M.n1_over_n2;
 
         mat = decodeMaterialSpec(M.uses);
         bool is_ref = mat.has.reflection || mat.has.refraction;
-        if (is_ref || mat.uses.phong) RLd = reflectWithDot(Rd, N, -invDotVec3(N, Rd));
+        if (is_ref || mat.uses.phong) {
+            NdotRd = -invDotVec3(N, Rd);
+            RLd = reflectWithDot(Rd, N, NdotRd);
+        }
 
         current_color = is_ref ? getVec3Of(0) : scene->ambient_light.color;
         for (u32 i = 0; i < scene->settings.lights; i++) {
@@ -36,10 +39,18 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
             if (NdotL <= 0)
                 continue;
 
+            LI = scaleVec3(light->color, light->intensity / d2);
+
             ray->direction = L;
-            trace->closest_hit.distance = d;
-            trace->closest_hit.distance_squared = d2;
+            hit->distance = d;
+            hit->distance_squared = d2;
             if (inShadow(ray, trace, scene)) continue;
+//            {
+//                if (scene->materials[hit->material_id].uses & REFRACTION)
+//                    LI = mulVec3(LI, M.specular);
+//                else
+//                    continue;
+//            }
 
             if (mat.has.specular) {
                 if (mat.uses.blinn) {
@@ -53,20 +64,22 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
             } else if (mat.has.diffuse)
                 radiance = scaleVec3(M.diffuse, clampValue(NdotL));
 
-            current_color = mulAddVec3(radiance, scaleVec3(light->color, light->intensity / d2), current_color);
+            current_color = mulAddVec3(radiance, LI, current_color);
         }
 
         color = mulAddVec3(current_color, throughput, color);
 
         if (is_ref && --depth) {
-            if (mat.has.reflection)
-                Rd = reflectVec3(Rd, N);
-            else
-                Rd = refract(Rd, N, DotVec3(Rd, N), ior);
-            ray->origin    = scaleAddVec3(Rd, TRACE_OFFSET, P);
-            ray->direction = Rd;
+            if (mat.has.reflection) {
+                ray->direction = RLd;
+            } else {
+                ray->direction = refract(Rd, N, ior, NdotRd);
+                if (ray->direction.x == 0 && ray->direction.y == 0 && ray->direction.z == 0)
+                    ray->direction = RLd;
+            }
             if (traceRay(ray, trace, scene)) {
                 throughput = mulVec3(throughput, M.specular);
+                Rd = ray->direction;
                 continue;
             }
         }

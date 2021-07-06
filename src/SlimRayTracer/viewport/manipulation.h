@@ -78,36 +78,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
     }
 
     if (selection->object_type) {
-        if (controls->is_pressed.shift && mouse->wheel_scrolled) {
-            bool down = mouse->wheel_scroll_amount < 0;
-            u32 amount = (u32)(down ? -mouse->wheel_scroll_amount : mouse->wheel_scroll_amount);
-            if (amount / 100 > 0) {
-                mouse->wheel_scroll_handled = true;
-
-                if (controls->is_pressed.ctrl) {
-                    if (down) {
-                        if (trace->depth > 1)
-                            trace->depth--;
-                    } else {
-                        if (trace->depth < 5)
-                            trace->depth++;
-                    }
-                } else {
-                    if (down) {
-                        if (selection->primitive->material_id)
-                            selection->primitive->material_id--;
-                        else
-                            selection->primitive->material_id = scene->settings.materials - 1;
-                    } else {
-                        if (selection->primitive->material_id == scene->settings.materials - 1)
-                            selection->primitive->material_id = 0;
-                        else
-                            selection->primitive->material_id++;
-                    }
-                }
-
-            }
-        } else if (controls->is_pressed.alt) {
+        if (controls->is_pressed.alt) {
             bool any_mouse_button_is_pressed = (
                     mouse->left_button.is_pressed ||
                     mouse->middle_button.is_pressed ||

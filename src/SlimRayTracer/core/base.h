@@ -162,8 +162,8 @@ typedef void (*CallbackWithCharPtr)(char* str);
             MAX_TRIANGLES_PER_MESH_BVH_NODE : MAX_OBJS_PER_SCENE_BVH_NODE   \
 )
 
-#define IOR_AIR 1
-#define IOR_GLASS 1.5f
+#define IOR_AIR 1.0003f
+#define IOR_GLASS 1.52f
 
 #define EPS 0.0001f
 #define HALF_SQRT2 0.70710678118f

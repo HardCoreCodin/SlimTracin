@@ -58,9 +58,9 @@ void setupLights(Scene *scene) {
     fill_light->color.y = 0.65f;
     fill_light->color.z = 1;
 
-    key_light->intensity = 1.3f * 3;
-    rim_light->intensity = 1.5f * 3;
-    fill_light->intensity = 1.1f * 3;
+    key_light->intensity  = 1.3f * 4;
+    rim_light->intensity  = 1.5f * 4;
+    fill_light->intensity = 1.1f * 4;
     key_light->is_directional = fill_light->is_directional = rim_light->is_directional = false;
 }
 
@@ -92,6 +92,9 @@ void setupMaterials(Scene *scene) {
     phong_material->shininess = 2;
     blinn_material->shininess = 3;
     reflective_material->specular = refractive_material->specular = getVec3Of(0.9f);
+//    refractive_material->specular.x = 0.6f;
+//    refractive_material->specular.y = 0.7f;
+//    refractive_material->specular.z = 0.3f;
     phong_material->diffuse.z = 0.4f;
     diffuse_material->diffuse.x = 0.3f;
     diffuse_material->diffuse.z = 0.2f;
@@ -184,6 +187,7 @@ void setupViewport(Viewport *viewport) {
 
     initTrace(&viewport->trace, &app->scene, &app->memory);
 
+    viewport->trace.depth = 4;
     scene_io_time = 0;
 }
 void updateViewport(Viewport *viewport, Mouse *mouse) {
@@ -207,6 +211,9 @@ void updateViewport(Viewport *viewport, Mouse *mouse) {
         viewport->navigation.zoomed)
         updateSceneSSB(&app->scene, viewport);
 }
+
+void onUpdate(Scene *scene, f32 delta_time);
+
 void updateAndRender() {
     Timer *timer = &app->time.timers.update;
     Controls *controls = &app->controls;
@@ -215,6 +222,8 @@ void updateAndRender() {
     Scene *scene = &app->scene;
 
     startFrameTimer(timer);
+
+    onUpdate(scene, timer->delta_time);
 
     if (mouse->is_captured) {
         navigateViewport(viewport, timer->delta_time);
@@ -252,6 +261,38 @@ void updateAndRender() {
         i32 y = 20;
         drawText(canvas, color, message, x, y);
         drawText(canvas, color, scene->settings.file.char_ptr, x + 100, y);
+    }
+    if (controls->is_pressed.ctrl && mouse->wheel_scrolled) {
+        bool down = mouse->wheel_scroll_amount < 0;
+        u32 amount = (u32)(down ? -mouse->wheel_scroll_amount : mouse->wheel_scroll_amount);
+        if (amount / 50 > 0) {
+            mouse->wheel_scroll_handled = true;
+
+            Selection *selection = scene->selection;
+            if (controls->is_pressed.shift) {
+                Trace *trace = &viewport->trace;
+                if (down) {
+                    if (trace->depth > 1)
+                        trace->depth--;
+                } else {
+                    if (trace->depth < 5)
+                        trace->depth++;
+                }
+            } else if (selection->object_type && selection->primitive) {
+                if (down) {
+                    if (selection->primitive->material_id)
+                        selection->primitive->material_id--;
+                    else
+                        selection->primitive->material_id = scene->settings.materials - 1;
+                } else {
+                    if (selection->primitive->material_id == scene->settings.materials - 1)
+                        selection->primitive->material_id = 0;
+                    else
+                        selection->primitive->material_id++;
+                }
+            }
+
+        }
     }
     resetMouseChanges(mouse);
     endFrameTimer(timer);
