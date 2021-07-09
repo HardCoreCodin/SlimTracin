@@ -275,3 +275,40 @@ INLINE bool hitPlane(vec3 plane_origin, vec3 plane_normal, vec3 *ray_origin, vec
 
     return true;
 }
+
+INLINE vec3 getAreaLightVector(Primitive *primitive, vec3 P, vec3 *v) {
+    if (primitive->scale.x == 0 ||
+        primitive->scale.z == 0)
+        return getVec3Of(0);
+
+    vec3 U = getVec3Of(0);
+    vec3 V = getVec3Of(0);
+    U.x = primitive->scale.x; if (U.x < 0) U.x = -U.x;
+    V.z = primitive->scale.z; if (V.z < 0) V.z = -V.z;
+    U = mulVec3Quat(U, primitive->rotation);
+    V = mulVec3Quat(V, primitive->rotation);
+
+    v[0] = subVec3(subVec3(primitive->position, U), V);
+    v[1] = subVec3(addVec3(primitive->position, U), V);
+    v[2] = addVec3(addVec3(primitive->position, U), V);
+    v[3] = addVec3(subVec3(primitive->position, U), V);
+    vec3 u1n = normVec3(subVec3(v[0], P));
+    vec3 u2n = normVec3(subVec3(v[1], P));
+    vec3 u3n = normVec3(subVec3(v[2], P));
+    vec3 u4n = normVec3(subVec3(v[3], P));
+    f32 angle12 = acosf(dotVec3(u1n, u2n));
+    f32 angle23 = acosf(dotVec3(u2n, u3n));
+    f32 angle34 = acosf(dotVec3(u3n, u4n));
+    f32 angle41 = acosf(dotVec3(u4n, u1n));
+
+    vec3 out =         scaleVec3(crossVec3(u1n, u2n), angle12);
+    out = addVec3(out, scaleVec3(crossVec3(u2n, u3n), angle23));
+    out = addVec3(out, scaleVec3(crossVec3(u3n, u4n), angle34));
+    out = addVec3(out, scaleVec3(crossVec3(u4n, u1n), angle41));
+
+//    f32 u_length = primitive->scale.x * 2;
+//    f32 v_length = primitive->scale.z * 2;
+//    f32 A = u_length * v_length;
+
+    return scaleVec3(out, 0.5f);
+}

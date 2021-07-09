@@ -6,15 +6,15 @@
 #include "../SlimRayTracer/render/raytracer.h"
 
 enum HUDLineID {
-    HUD_LINE__FPS,
-    HUD_LINE__GPU,
-    HUD_LINE__Width,
-    HUD_LINE__Height,
-    HUD_LINE__Bounces,
-    HUD_LINE__MatID,
-    HUD_LINE__BVH,
-    HUD_LINE__SSB,
-    HUD_LINE__Mode
+    HUD_LINE_FPS,
+    HUD_LINE_GPU,
+    HUD_LINE_Width,
+    HUD_LINE_Height,
+    HUD_LINE_Bounces,
+    HUD_LINE_MatID,
+    HUD_LINE_BVH,
+    HUD_LINE_SSB,
+    HUD_LINE_Mode
 };
 
 u64 scene_io_time;
@@ -26,7 +26,8 @@ enum MaterialIDs {
     MaterialID_Phong,
     MaterialID_Blinn,
     MaterialID_Reflective,
-    MaterialID_Refractive
+    MaterialID_Refractive,
+    MaterialID_Emissive
 };
 
 void setupLights(Scene *scene) {
@@ -70,7 +71,8 @@ void setupMaterials(Scene *scene) {
             *phong_material      = scene->materials + MaterialID_Phong,
             *blinn_material      = scene->materials + MaterialID_Blinn,
             *reflective_material = scene->materials + MaterialID_Reflective,
-            *refractive_material = scene->materials + MaterialID_Refractive;
+            *refractive_material = scene->materials + MaterialID_Refractive,
+            *emissive_material   = scene->materials + MaterialID_Emissive;
 
     walls_material->uses = LAMBERT;
     diffuse_material->uses = LAMBERT;
@@ -78,11 +80,13 @@ void setupMaterials(Scene *scene) {
     blinn_material->uses = LAMBERT | BLINN;
     reflective_material->uses = BLINN | REFLECTION;
     refractive_material->uses = BLINN | REFRACTION;
+    emissive_material->uses = EMISSION;
 
     Material* material = scene->materials;
     for (u32 i = 0; i < scene->settings.materials; i++, material++) {
         material->diffuse = getVec3Of(1);
         material->specular = getVec3Of(1);
+        material->emission = getVec3Of(1);
         material->roughness = 1;
         material->shininess = 1;
         material->n1_over_n2 = IOR_AIR / IOR_GLASS;
@@ -102,8 +106,8 @@ void setupMaterials(Scene *scene) {
 }
 
 void setDimensionsInHUD(HUD *hud, i32 width, i32 height) {
-    printNumberIntoString(width,  &hud->lines[HUD_LINE__Width ].value);
-    printNumberIntoString(height, &hud->lines[HUD_LINE__Height].value);
+    printNumberIntoString(width,  &hud->lines[HUD_LINE_Width ].value);
+    printNumberIntoString(height, &hud->lines[HUD_LINE_Height].value);
 }
 void onButtonDown(MouseButton *mouse_button) {
     app->controls.mouse.pos_raw_diff.x = 0;
@@ -141,23 +145,23 @@ void setupViewport(Viewport *viewport) {
 
         line_id = (enum HUDLineID)(i);
         switch (line_id) {
-            case HUD_LINE__GPU:
-            case HUD_LINE__SSB:
-            case HUD_LINE__BVH:
+            case HUD_LINE_GPU:
+            case HUD_LINE_SSB:
+            case HUD_LINE_BVH:
                 setString(str, (char*)("On"));
                 setString(alt, (char*)("Off"));
                 line->alternate_value_color = DarkGreen;
                 line->invert_alternate_use = true;
-                line->use_alternate = line_id == HUD_LINE__BVH ? &viewport->settings.show_BVH :
-                                      line_id == HUD_LINE__SSB ? &viewport->settings.show_SSB :
+                line->use_alternate = line_id == HUD_LINE_BVH ? &viewport->settings.show_BVH :
+                                      line_id == HUD_LINE_SSB ? &viewport->settings.show_SSB :
                                       &viewport->settings.use_GPU;
                 break;
-            case HUD_LINE__FPS:     printNumberIntoString(fps,         num); break;
-            case HUD_LINE__Width:   printNumberIntoString(dim->width,  num); break;
-            case HUD_LINE__Height:  printNumberIntoString(dim->height, num); break;
-            case HUD_LINE__Bounces: printNumberIntoString(bounces,     num); break;
-            case HUD_LINE__MatID:   printNumberIntoString(0,   num); break;
-            case HUD_LINE__Mode:
+            case HUD_LINE_FPS:     printNumberIntoString(fps, num); break;
+            case HUD_LINE_Width:   printNumberIntoString(dim->width, num); break;
+            case HUD_LINE_Height:  printNumberIntoString(dim->height, num); break;
+            case HUD_LINE_Bounces: printNumberIntoString(bounces, num); break;
+            case HUD_LINE_MatID:   printNumberIntoString(0, num); break;
+            case HUD_LINE_Mode:
                 setRenderModeString(viewport->settings.render_mode, str);
                 break;
             default:
@@ -166,15 +170,15 @@ void setupViewport(Viewport *viewport) {
 
         str = &line->title;
         switch (line_id) {
-            case HUD_LINE__FPS:     setString(str, (char*)"Fps    : "); break;
-            case HUD_LINE__GPU:     setString(str, (char*)"Use GPU: "); break;
-            case HUD_LINE__SSB:     setString(str, (char*)"ShowSSB: "); break;
-            case HUD_LINE__BVH:     setString(str, (char*)"ShowBVH: "); break;
-            case HUD_LINE__Width:   setString(str, (char*)"Width  : "); break;
-            case HUD_LINE__Height:  setString(str, (char*)"Height : "); break;
-            case HUD_LINE__Bounces: setString(str, (char*)"Bounces: "); break;
-            case HUD_LINE__MatID:   setString(str, (char*)"Mat. id: "); break;
-            case HUD_LINE__Mode:    setString(str, (char*)"Mode   : "); break;
+            case HUD_LINE_FPS:     setString(str, (char*)"Fps    : "); break;
+            case HUD_LINE_GPU:     setString(str, (char*)"Use GPU: "); break;
+            case HUD_LINE_SSB:     setString(str, (char*)"ShowSSB: "); break;
+            case HUD_LINE_BVH:     setString(str, (char*)"ShowBVH: "); break;
+            case HUD_LINE_Width:   setString(str, (char*)"Width  : "); break;
+            case HUD_LINE_Height:  setString(str, (char*)"Height : "); break;
+            case HUD_LINE_Bounces: setString(str, (char*)"Bounces: "); break;
+            case HUD_LINE_MatID:   setString(str, (char*)"Mat. id: "); break;
+            case HUD_LINE_Mode:    setString(str, (char*)"Mode   : "); break;
             default:
                 break;
         }
@@ -239,9 +243,9 @@ void updateAndRender() {
     drawSelection(scene, viewport, controls);
 
     if (viewport->settings.show_hud) {
-        printNumberIntoString(app->time.timers.update.average_frames_per_second, &viewport->hud.lines[HUD_LINE__FPS].value);
-        printNumberIntoString((i32)viewport->trace.depth, &viewport->hud.lines[HUD_LINE__Bounces].value);
-        printNumberIntoString(scene->selection->primitive ? scene->selection->primitive->material_id : 0, &viewport->hud.lines[HUD_LINE__MatID].value);
+        printNumberIntoString(app->time.timers.update.average_frames_per_second, &viewport->hud.lines[HUD_LINE_FPS].value);
+        printNumberIntoString((i32)viewport->trace.depth, &viewport->hud.lines[HUD_LINE_Bounces].value);
+        printNumberIntoString(scene->selection->primitive ? scene->selection->primitive->material_id : 0, &viewport->hud.lines[HUD_LINE_MatID].value);
         drawHUD(viewport->frame_buffer, &viewport->hud);
     }
     f64 now = (f64)app->time.getTicks();
@@ -337,7 +341,7 @@ void onKeyChanged(u8 key, bool is_pressed) {
         if (key >= '1' &&
             key <= '4')
             setRenderModeString(settings->render_mode,
-                                &viewport->hud.lines[HUD_LINE__Mode].value.string);
+                                &viewport->hud.lines[HUD_LINE_Mode].value.string);
     }
 }
 

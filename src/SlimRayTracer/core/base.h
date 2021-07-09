@@ -104,8 +104,15 @@ typedef void* (*CallbackWithInt)(u64 size);
 typedef void (*CallbackWithBool)(bool on);
 typedef void (*CallbackWithCharPtr)(char* str);
 
-#define TAU 6.28f
+#define EPS 0.0001f
+#define HALF_SQRT2 0.70710678118f
+#define SQRT2 1.41421356237f
 #define SQRT3 1.73205080757f
+
+#define pi (3.14159265f)
+#define TAU (2.0f*pi)
+#define ONE_OVER_PI (1.0f/pi)
+#define ONE_OVER_TWO_PI (1.0f/TAU)
 
 #define MAX_COLOR_VALUE 0xFF
 
@@ -150,6 +157,7 @@ typedef void (*CallbackWithCharPtr)(char* str);
 #define REFLECTION 8
 #define REFRACTION 16
 #define TRANSPARENCY 32
+#define EMISSION 64
 
 #define TRACE_OFFSET 0.0001f
 
@@ -164,11 +172,6 @@ typedef void (*CallbackWithCharPtr)(char* str);
 
 #define IOR_AIR 1.0003f
 #define IOR_GLASS 1.52f
-
-#define EPS 0.0001f
-#define HALF_SQRT2 0.70710678118f
-#define SQRT2 1.41421356237f
-#define SQRT3 1.73205080757f
 
 typedef struct u8_3 { u8 x, y, z; } u8_3;
 typedef struct vec2  { f32 x, y; } vec2;

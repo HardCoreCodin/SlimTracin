@@ -61,7 +61,7 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
         }
 
         if (current_found) {
-            if (any_hit && hit->from_behind && scene->materials[hit->material_id].uses & REFRACTION)
+            if (any_hit && hit->from_behind && scene->materials[primitive->material_id].uses & REFRACTION)
                 continue;
 
             hit->position       = convertPositionToWorldSpace(hit->position, primitive);

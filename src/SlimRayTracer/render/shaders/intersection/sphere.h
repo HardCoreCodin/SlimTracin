@@ -41,43 +41,42 @@ INLINE vec2 getUVonUnitSphere(vec3 direction) {
 }
 
 INLINE bool hitSphere(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
-    f32 t = -dotVec3(*Ro, *Rd);
-    if (t <= 0)
+    f32 t_to_closest = -dotVec3(*Ro, *Rd);
+    if (t_to_closest <= 0) { // Ray is aiming away from the sphere
+        hit->distance = 0;
         return false;
+    }
 
-    hit->distance_squared = 1.0f - squaredLengthVec3(scaleAddVec3(*Rd, t, *Ro));
-    if (hit->distance_squared <= 0)
+    hit->distance_squared = squaredLengthVec3(*Ro) - t_to_closest*t_to_closest;
+//    if (hit->distance_squared < 0) {
+//        hit->distance = 0;
+//        return false;
+//    }
+    f32 delta_squared = 1 - hit->distance_squared;
+    if (delta_squared <= 0) { // Ray missed the sphere
+        hit->distance = t_to_closest;
         return false;
-
+    }
     // Inside the geometry
-    hit->distance = sqrtf(hit->distance_squared);
+    f32 delta = sqrtf(delta_squared);
 
-    f32 inner_hit_distance = t + hit->distance;
-    f32 outer_hit_distance = t - hit->distance;
-
-    bool has_outer_hit = outer_hit_distance > 0;
-    bool has_inner_hit = inner_hit_distance > 0;
-
-    if (!(has_inner_hit || has_outer_hit))
-        return false;
-
+    hit->distance = t_to_closest - delta;
+    bool has_outer_hit = hit->distance > 0;
     if (has_outer_hit) {
-        hit->position = scaleAddVec3(*Rd, outer_hit_distance, *Ro);
+        hit->position = scaleAddVec3(*Rd, hit->distance, *Ro);
         hit->uv = getUVonUnitSphere(hit->position);
         if (flags & IS_TRANSPARENT && isTransparentUV(hit->uv))
             has_outer_hit = false;
-        else
-            has_inner_hit = false;
     }
-
-    if (has_inner_hit) {
-        hit->position = scaleAddVec3(*Rd, inner_hit_distance, *Ro);
+    if (!has_outer_hit) {
+        hit->distance = t_to_closest + delta;
+        hit->position = scaleAddVec3(*Rd, hit->distance, *Ro);
         hit->uv = getUVonUnitSphere(hit->position);
         if (flags & IS_TRANSPARENT && isTransparentUV(hit->uv))
             return false;
     }
 
-    hit->from_behind = has_inner_hit && !has_outer_hit;
+    hit->from_behind = !has_outer_hit;
     hit->normal = hit->position;
 
     return true;
