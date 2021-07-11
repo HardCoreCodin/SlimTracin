@@ -110,7 +110,8 @@ enum PrimitiveType {
     PrimitiveType_Box,
     PrimitiveType_Tetrahedron,
     PrimitiveType_Quad,
-    PrimitiveType_Sphere
+    PrimitiveType_Sphere,
+    PrimitiveType_Light
 };
 
 enum RenderMode {

@@ -11,6 +11,7 @@
 //#include "./shaders/closest_hit/classic.h"
 //#include "./shaders/closest_hit/reflection.h"
 #include "./SSB.h"
+#include "./shaders/closest_hit/fog.h"
 
 void setRenderModeString(enum RenderMode mode, String *string) {
     switch (mode) {
@@ -89,9 +90,15 @@ void updateScene(Scene *scene, Viewport *viewport) {
 }
 
 INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode, u16 x, u16 y, Pixel *pixel) {
-    if (hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y)) {
-        vec3 color;
-//        u32 material_uses;
+    vec3 Ro = ray->origin;
+    vec3 Rd = ray->direction;
+    vec3 color = getVec3Of(0);
+    f32 fog, one_over_light_radius, max_distance = INFINITY;
+    SphereHit sphere_hit;
+    bool hit_found = hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y);
+    if (hit_found) {
+        max_distance = trace->closest_hit.distance;
+
         switch (mode) {
             case RenderMode_Beauty: color = shadeSurface(ray, trace, scene); break;
 //                material_uses = scene->materials[trace->closest_hit.material_id].flags;
@@ -104,12 +111,26 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
             case RenderMode_Normals: color = shadeDirection(trace->closest_hit.normal);        break;
             case RenderMode_UVs    : color = shadeUV(trace->closest_hit.uv);                   break;
         }
-        if (mode == RenderMode_Beauty)
-            setPixelBakedToneMappedColor(pixel, &color);
-        else
-            setPixelColor(pixel, &color);
+    }
+
+    if (mode == RenderMode_Beauty) {
+        Light *light = scene->lights;
+        if (light) {
+            for (u32 i = 0; i < scene->settings.lights; i++, light++) {
+                one_over_light_radius = 8.0f / light->intensity;
+                if (hitSphereSimple(Ro, Rd, light->position_or_direction, one_over_light_radius,
+                                    max_distance * one_over_light_radius,
+                                    &sphere_hit)) {
+                    fog = computeFog(&sphere_hit, 0, max_distance * one_over_light_radius);
+                    fog = powf(fog, 8) * 8;
+                    color = scaleAddVec3(light->color, fog, color);
+                }
+            }
+        }
+
+        setPixelBakedToneMappedColor(pixel, &color);
     } else
-        pixel->color = Color(Black);
+        setPixelColor(pixel, &color);
 }
 
 void renderSceneOnCPU(Scene *scene, Viewport *viewport) {

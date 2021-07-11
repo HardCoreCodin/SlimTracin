@@ -11,12 +11,31 @@
 #include "../render/shaders/intersection/box.h"
 #include "../render/shaders/intersection/primitives.h"
 
+Primitive getSelectedPrimitive(Scene *scene) {
+    Primitive primitive;
+    Selection *selection = scene->selection;
+    if (scene->selection->object_type == PrimitiveType_Light) {
+        primitive.type = selection->object_type;
+        primitive.id   = selection->object_id;
+        primitive.position = scene->lights[selection->object_id].position_or_direction;
+        primitive.scale = getVec3Of(scene->lights[selection->object_id].intensity / 8);
+        primitive.rotation = getIdentityQuaternion();
+        primitive.flags = IS_TRANSLATED | IS_SCALED;
+    } else {
+        primitive = *selection->primitive;
+        if (primitive.type == PrimitiveType_Mesh)
+            primitive.scale = mulVec3(primitive.scale, scene->meshes[primitive.id].aabb.max);
+    }
+    return primitive;
+}
+
 void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
     Mouse *mouse = &controls->mouse;
     Camera *camera = viewport->camera;
     Dimensions *dimensions = &viewport->frame_buffer->dimensions;
     Selection *selection = scene->selection;
     Trace *trace = &viewport->trace;
+    Light *light = scene->lights;
 
     setViewportProjectionPlane(viewport);
 
@@ -27,6 +46,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
     RayHit *hit = &trace->closest_hit;
     Ray ray, *local_ray = &trace->local_space_ray;
     Primitive primitive;
+    SphereHit sphere_hit;
 
     selection->transformed = false;
 
@@ -39,15 +59,34 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
 
             ray.direction_reciprocal = oneOverVec3(ray.direction);
             trace->closest_hit.distance = trace->closest_hit.distance_squared = MAX_DISTANCE;
-            if (hitPrimitives(&ray,
-                              trace,
-                              scene,
-                              scene->bvh.leaf_ids,
-                              scene->settings.primitives,
-                              false,
-                              true,
-                              mouse->pos.x,
-                              mouse->pos.y)) {
+
+            bool found = hitPrimitives(&ray,
+                                       trace,
+                                       scene,
+                                       scene->bvh.leaf_ids,
+                                       scene->settings.primitives,
+                                       false,
+                                       true,
+                                       mouse->pos.x,
+                                       mouse->pos.y);
+            if (light) {
+                for (u32 i = 0; i < scene->settings.lights; i++, light++) {
+                    if (hitSphereSimple(ray.origin,
+                                        ray.direction,
+                                        light->position_or_direction,
+                                        8 / light->intensity,
+                                        hit->distance * 8 / light->intensity,
+                                        &sphere_hit)) {
+                        hit->distance = sphere_hit.t_near * light->intensity / 8;
+                        hit->position = scaleAddVec3(ray.direction, hit->distance, ray.origin);
+                        hit->object_type = PrimitiveType_Light;
+                        hit->object_id = i;
+                        found = true;
+                    }
+                }
+            }
+
+            if (found) {
                 // Detect if object scene->selection has changed:
                 selection->changed = (
                         selection->object_type != hit->object_type ||
@@ -57,13 +96,16 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                 // Track the object that is now selected:
                 selection->object_type = hit->object_type;
                 selection->object_id   = hit->object_id;
-                selection->primitive   = null;
 
                 // Capture a pointer to the selected object's position for later use in transformations:
-                selection->primitive = scene->primitives + selection->object_id;
-                selection->world_position = &selection->primitive->position;
+                if (selection->object_type == PrimitiveType_Light) {
+                    selection->primitive = null;
+                    selection->world_position = &scene->lights[selection->object_id].position_or_direction;
+                } else {
+                    selection->primitive = scene->primitives + selection->object_id;
+                    selection->world_position = &selection->primitive->position;
+                }
                 selection->transformation_plane_origin = hit->position;
-
                 selection->world_offset = subVec3(hit->position, *selection->world_position);
 
                 // Track how far away the hit position is from the camera along the z axis:
@@ -72,82 +114,89 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
             } else {
                 if (selection->object_type)
                     selection->changed = true;
-                selection->object_type = 0;
+                selection->object_type = PrimitiveType_None;
+                selection->primitive = null;
             }
         }
     }
 
     if (selection->object_type) {
         if (controls->is_pressed.alt) {
-            bool any_mouse_button_is_pressed = (
-                    mouse->left_button.is_pressed ||
-                    mouse->middle_button.is_pressed ||
-                    mouse->right_button.is_pressed);
-            if (selection->primitive && !any_mouse_button_is_pressed) {
-                // Cast a ray onto the bounding box of the currently selected object:
-                setRayFromCoords(&ray, mouse->pos, viewport);
-                primitive = *selection->primitive;
-                if (primitive.type == PrimitiveType_Mesh)
-                    primitive.scale = mulVec3(primitive.scale, scene->meshes[primitive.id].aabb.max);
+            if (mouse->left_button.is_pressed ||
+                mouse->middle_button.is_pressed ||
+                mouse->right_button.is_pressed) {
+                if (!selection->box_side) {
+                    // Cast a ray onto the bounding box of the currently selected object:
+                    setRayFromCoords(&ray, mouse->pos, viewport);
 
-                convertPositionAndDirectionToObjectSpace(ray.origin, ray.direction, &primitive, &local_ray->origin, &local_ray->direction);
-                selection->box_side = hitBox(hit, &local_ray->origin, &local_ray->direction, ALL_FLAGS);
-                if (selection->box_side) {
-                    selection->transformation_plane_center = convertPositionToWorldSpace(hit->normal,   &primitive);
-                    selection->transformation_plane_origin = convertPositionToWorldSpace(hit->position, &primitive);
-                    selection->transformation_plane_normal = convertDirectionToWorldSpace(hit->normal,  &primitive);
-                    selection->transformation_plane_normal = normVec3(selection->transformation_plane_normal);
-                    selection->world_offset = subVec3(selection->transformation_plane_origin, *selection->world_position);
-                    selection->object_scale    = selection->primitive->scale;
-                    selection->object_rotation = selection->primitive->rotation;
-                }
-            }
+                    primitive = getSelectedPrimitive(scene);
 
-            if (selection->box_side) {
-                if (selection->primitive) {
-                    if (any_mouse_button_is_pressed) {
-                        selection->transformed = true;
-                        setRayFromCoords(&ray, mouse->pos, viewport);
-                        if (hitPlane(selection->transformation_plane_origin,
-                                     selection->transformation_plane_normal,
-                                     &ray.origin,
-                                     &ray.direction,
-                                     hit)) {
-
-                            primitive = *selection->primitive;
-                            if (primitive.type == PrimitiveType_Mesh)
-                                primitive.scale = mulVec3(primitive.scale, scene->meshes[primitive.id].aabb.max);
-                            if (mouse->left_button.is_pressed) {
-                                position = subVec3(hit->position, selection->world_offset);
-                                *selection->world_position = position;
-                                if (selection->primitive)
-                                    selection->primitive->flags |= IS_TRANSLATED;
-                            } else if (mouse->middle_button.is_pressed) {
-                                position      = selection->transformation_plane_origin;
-                                position      = convertPositionToObjectSpace(     position, &primitive);
-                                hit->position = convertPositionToObjectSpace(hit->position, &primitive);
-
-                                selection->primitive->scale = mulVec3(selection->object_scale, mulVec3(hit->position, oneOverVec3(position)));
-                                selection->primitive->flags |= IS_SCALED | IS_SCALED_NON_UNIFORMLY;
-                            } else if (mouse->right_button.is_pressed) {
-                                vec3 v1 = subVec3(hit->position,
-                                                  selection->transformation_plane_center);
-                                vec3 v2 = subVec3(selection->transformation_plane_origin,
-                                                  selection->transformation_plane_center);
-                                quat q;
-                                q.axis = crossVec3(v2, v1);
-                                q.amount = sqrtf(squaredLengthVec3(v1) * squaredLengthVec3(v2)) + dotVec3(v1, v2);
-                                q = normQuat(q);
-                                selection->primitive->rotation = mulQuat(q, selection->object_rotation);
-                                selection->primitive->rotation = normQuat(selection->primitive->rotation);
-                                selection->primitive->flags |= IS_ROTATED;
-                            }
-
-                            updatePrimitiveSSB(scene, viewport, selection->primitive);
+                    convertPositionAndDirectionToObjectSpace(ray.origin, ray.direction, &primitive, &local_ray->origin, &local_ray->direction);
+                    selection->box_side = hitBox(hit, &local_ray->origin, &local_ray->direction, ALL_FLAGS);
+                    if (selection->box_side) {
+                        selection->transformation_plane_center = convertPositionToWorldSpace(hit->normal,   &primitive);
+                        selection->transformation_plane_origin = convertPositionToWorldSpace(hit->position, &primitive);
+                        selection->transformation_plane_normal = convertDirectionToWorldSpace(hit->normal,  &primitive);
+                        selection->transformation_plane_normal = normVec3(selection->transformation_plane_normal);
+                        selection->world_offset = subVec3(selection->transformation_plane_origin, *selection->world_position);
+                        if (selection->object_type == PrimitiveType_Light) {
+                            selection->object_scale = getVec3Of(scene->lights[selection->object_id].intensity / 8);
+                            selection->object_rotation = getIdentityQuaternion();
+                        } else {
+                            selection->object_scale    = selection->primitive->scale;
+                            selection->object_rotation = selection->primitive->rotation;
                         }
                     }
                 }
-            }
+                selection->transformed = true;
+                setRayFromCoords(&ray, mouse->pos, viewport);
+                if (hitPlane(selection->transformation_plane_origin,
+                             selection->transformation_plane_normal,
+                             &ray.origin,
+                             &ray.direction,
+                             hit)) {
+
+                    primitive = getSelectedPrimitive(scene);
+
+                    if (mouse->left_button.is_pressed) {
+                        position = subVec3(hit->position, selection->world_offset);
+                        *selection->world_position = position;
+                        if (selection->primitive)
+                            selection->primitive->flags |= IS_TRANSLATED;
+                    } else if (mouse->middle_button.is_pressed) {
+                        position      = selection->transformation_plane_origin;
+                        position      = convertPositionToObjectSpace(     position, &primitive);
+                        hit->position = convertPositionToObjectSpace(hit->position, &primitive);
+                        position = mulVec3(hit->position, oneOverVec3(position));
+                        if (selection->primitive) {
+                            selection->primitive->scale = mulVec3(selection->object_scale, position);
+                            selection->primitive->flags |= IS_SCALED | IS_SCALED_NON_UNIFORMLY;
+                        } else {
+                            if (selection->box_side == Top || selection->box_side == Bottom)
+                                position.x = position.z > 0 ? position.z : -position.z;
+                            else
+                                position.x = position.y > 0 ? position.y : -position.y;
+                            scene->lights[selection->object_id].intensity = (selection->object_scale.x * 8) * position.x;
+                        }
+
+                    } else if (mouse->right_button.is_pressed && selection->primitive) {
+                        vec3 v1 = subVec3(hit->position,
+                                          selection->transformation_plane_center);
+                        vec3 v2 = subVec3(selection->transformation_plane_origin,
+                                          selection->transformation_plane_center);
+                        quat q;
+                        q.axis = crossVec3(v2, v1);
+                        q.amount = sqrtf(squaredLengthVec3(v1) * squaredLengthVec3(v2)) + dotVec3(v1, v2);
+                        q = normQuat(q);
+                        selection->primitive->rotation = mulQuat(q, selection->object_rotation);
+                        selection->primitive->rotation = normQuat(selection->primitive->rotation);
+                        selection->primitive->flags |= IS_ROTATED;
+                    }
+                    if (selection->primitive)
+                        updatePrimitiveSSB(scene, viewport, selection->primitive);
+                }
+            } else
+                selection->box_side = NoSide;
         } else {
             selection->box_side = NoSide;
             if (mouse->left_button.is_pressed && mouse->moved) {
@@ -169,11 +218,12 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                 // Back-track by the world offset (from the hit position back to the selected-object's center):
                 position = subVec3(position, selection->world_offset);
                 *selection->world_position = position;
-                if (selection->primitive)
+                if (selection->primitive) {
                     selection->primitive->flags |= IS_TRANSLATED;
+                    updatePrimitiveSSB(scene, viewport, selection->primitive);
+                }
 
                 selection->transformed = true;
-                updatePrimitiveSSB(scene, viewport, selection->primitive);
             }
         }
     }
@@ -186,11 +236,8 @@ void drawSelection(Scene *scene, Viewport *viewport, Controls *controls) {
 
     if (controls->is_pressed.alt &&
         !mouse->is_captured &&
-        selection->object_type &&
-        selection->primitive) {
-        Primitive primitive = *selection->primitive;
-        if (primitive.type == PrimitiveType_Mesh)
-            primitive.scale = mulVec3(primitive.scale, scene->meshes[primitive.id].aabb.max);
+        selection->object_type) {
+        Primitive primitive = getSelectedPrimitive(scene);
 
         initBox(box);
         drawBox(viewport, Color(Yellow), box, &primitive, BOX__ALL_SIDES);
