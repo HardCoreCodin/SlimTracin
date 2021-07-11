@@ -266,14 +266,14 @@ void updateAndRender() {
         drawText(canvas, color, message, x, y);
         drawText(canvas, color, scene->settings.file.char_ptr, x + 100, y);
     }
-    if (controls->is_pressed.ctrl && mouse->wheel_scrolled) {
+    if (controls->is_pressed.shift && mouse->wheel_scrolled) {
         bool down = mouse->wheel_scroll_amount < 0;
         u32 amount = (u32)(down ? -mouse->wheel_scroll_amount : mouse->wheel_scroll_amount);
         if (amount / 50 > 0) {
             mouse->wheel_scroll_handled = true;
 
             Selection *selection = scene->selection;
-            if (controls->is_pressed.shift) {
+            if (controls->is_pressed.ctrl) {
                 Trace *trace = &viewport->trace;
                 if (down) {
                     if (trace->depth > 1)
