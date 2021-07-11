@@ -74,13 +74,13 @@ void setupMaterials(Scene *scene) {
             *refractive_material = scene->materials + MaterialID_Refractive,
             *emissive_material   = scene->materials + MaterialID_Emissive;
 
-    walls_material->uses = LAMBERT;
-    diffuse_material->uses = LAMBERT;
-    phong_material->uses = LAMBERT | PHONG | TRANSPARENCY;
-    blinn_material->uses = LAMBERT | BLINN;
-    reflective_material->uses = BLINN | REFLECTION;
-    refractive_material->uses = BLINN | REFRACTION;
-    emissive_material->uses = EMISSION;
+    walls_material->flags = LAMBERT;
+    diffuse_material->flags = LAMBERT;
+    phong_material->flags = LAMBERT | PHONG | TRANSPARENCY;
+    blinn_material->flags = LAMBERT | BLINN;
+    reflective_material->flags = BLINN | REFLECTION;
+    refractive_material->flags = BLINN | REFRACTION;
+    emissive_material->flags = EMISSION;
 
     Material* material = scene->materials;
     for (u32 i = 0; i < scene->settings.materials; i++, material++) {
@@ -331,6 +331,12 @@ void onKeyChanged(u8 key, bool is_pressed) {
             scene_io_time = app->time.getTicks();
         }
 
+        if (key == 'T' && scene->selection->primitive) {
+            if (scene->selection->primitive->flags & IS_TRANSPARENT)
+                scene->selection->primitive->flags &= ~IS_TRANSPARENT;
+            else
+                scene->selection->primitive->flags |= IS_TRANSPARENT;
+        }
         if (key == 'G') settings->use_GPU = USE_GPU_BY_DEFAULT ? !settings->use_GPU : false;
         if (key == '9') settings->show_BVH = !settings->show_BVH;
         if (key == '0') settings->show_SSB = !settings->show_SSB;

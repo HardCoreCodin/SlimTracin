@@ -160,23 +160,23 @@ INLINE vec3 refract(vec3 V, vec3 N, f32 n1_over_n2, f32 NdotV) {
     return normVec3(V);
 }
 
-//INLINE vec3 refract_old(vec3 V, vec3 N, f32 NdotV, f32 n1_over_n2) {
+//INLINE vec3 refract_old(vec3 V, vec3 normal, f32 NdotV, f32 n1_over_n2) {
 //    f32 c = n1_over_n2*n1_over_n2 * (1 - (NdotV*NdotV));
-//    if (c + EPS > 1) return reflectWithDot(V, N, NdotV);
+//    if (c + EPS > 1) return reflectWithDot(V, normal, NdotV);
 //
 //    c = sqrtf(1 - c);
 //    vec3 a = scaleVec3(V, n1_over_n2);
-//    vec3 b = scaleVec3(N, n1_over_n2 * -NdotV - c);
+//    vec3 b = scaleVec3(normal, n1_over_n2 * -NdotV - c);
 //    return normVec3(addVec3(a, b));
 //}
 //
-//INLINE vec3 refract_gls(vec3 I, vec3 N, f32 m) {
-//    f32 ni = dotVec3(N, I);
+//INLINE vec3 refract_gls(vec3 I, vec3 normal, f32 m) {
+//    f32 ni = dotVec3(normal, I);
 //    f32 c = 1 - m * m * (1 - ni * ni);
 //    if (c < 0)
-//        return reflectVec3(I, N);
+//        return reflectVec3(I, normal);
 //    else {
-//        vec3 b = scaleVec3(N, m * ni + sqrt(c));
+//        vec3 b = scaleVec3(normal, m * ni + sqrt(c));
 //        return subVec3(scaleVec3(I, m), b);
 //    }
 //}

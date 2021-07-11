@@ -42,10 +42,8 @@ INLINE vec2 getUVonUnitSphere(vec3 direction) {
 
 INLINE bool hitSphere(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
     f32 t_to_closest = -dotVec3(*Ro, *Rd);
-    if (t_to_closest <= 0) { // Ray is aiming away from the sphere
-        hit->distance = 0;
+    if (t_to_closest <= 0)// Ray is aiming away from the sphere
         return false;
-    }
 
     hit->distance_squared = squaredLengthVec3(*Ro) - t_to_closest*t_to_closest;
 //    if (hit->distance_squared < 0) {

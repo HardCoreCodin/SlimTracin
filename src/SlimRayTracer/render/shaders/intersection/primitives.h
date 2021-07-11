@@ -48,9 +48,8 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
             case PrimitiveType_Tetrahedron: current_found = hitTetrahedron(hit, Ro, Rd, primitive->flags); break;
             case PrimitiveType_Mesh:
                 trace->local_space_ray.direction_reciprocal = oneOverVec3(*Rd);
-                trace->closest_mesh_hit.distance = INFINITY;
-                if (!any_hit && closest_hit->distance != INFINITY)
-                    trace->closest_mesh_hit.distance = lengthVec3(subVec3(convertPositionToObjectSpace(closest_hit->position, primitive), *Ro));
+                trace->closest_mesh_hit.distance = closest_hit->distance == INFINITY ? INFINITY :
+                        lengthVec3(subVec3(convertPositionToObjectSpace(closest_hit->position, primitive), *Ro));
 
                 prePrepRay(&trace->local_space_ray);
                 current_found = traceMesh(trace, scene->meshes + primitive->id, any_hit);
@@ -61,8 +60,8 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
         }
 
         if (current_found) {
-            if (any_hit && hit->from_behind && scene->materials[primitive->material_id].uses & REFRACTION)
-                continue;
+//            if (any_hit && hit->from_behind && scene->materials[primitive->material_id].flags & REFRACTION)
+//                continue;
 
             hit->position       = convertPositionToWorldSpace(hit->position, primitive);
             hit->distance_squared = squaredLengthVec3(subVec3(hit->position, ray->origin));

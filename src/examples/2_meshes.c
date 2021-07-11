@@ -39,7 +39,7 @@ void setupScene(Scene *scene) {
     primitive->position.z = 5;
     primitive->position.y = 4;
     primitive->type = PrimitiveType_Mesh;
-    primitive->material_id = MaterialID_Refractive;
+//    primitive->material_id = MaterialID_Refractive;
     primitive->color = Magenta;
 
     primitive++;

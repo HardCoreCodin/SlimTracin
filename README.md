@@ -10,9 +10,9 @@ Optional GPU support using CUDA: The same code is cross-compiled (no CUDA librar
 
 Architecture:
 -
-The platform layer only uses operating-system headers (no standard library used).<br>
+The platform layer only flags operating-system headers (no standard library used).<br>
 The application layer itself (non-CUDA) has no dependencies, apart from the standard math header.<br>
-It is just a library that the platform layer uses - it has no knowledge of the platform.<br>
+It is just a library that the platform layer flags - it has no knowledge of the platform.<br>
 
 More details on this architecture [here](https://youtu.be/Ev_TeQmus68).
 

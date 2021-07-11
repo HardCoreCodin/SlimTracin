@@ -94,7 +94,7 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
 //        u32 material_uses;
         switch (mode) {
             case RenderMode_Beauty: color = shadeSurface(ray, trace, scene); break;
-//                material_uses = scene->materials[trace->closest_hit.material_id].uses;
+//                material_uses = scene->materials[trace->closest_hit.material_id].flags;
 //                if (material_uses & REFLECTION)   color = shadeReflection(ray, trace, scene);
 //                else if (material_uses & BLINN)   color = shadeBlinn(     ray, trace, scene);
 //                else if (material_uses & PHONG)   color = shadePhong(     ray, trace, scene);

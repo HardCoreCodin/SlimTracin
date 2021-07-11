@@ -5,8 +5,6 @@
 #include "../common.h"
 
 INLINE bool hitQuad(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
-    hit->distance = 0;
-
     if (Rd->y == 0) // The ray is parallel to the plane
         return false;
 
@@ -50,7 +48,7 @@ INLINE bool hitEmissiveQuads(Ray *ray, Trace *trace, Scene *scene) {
 
     Primitive *primitive = scene->primitives;
     for (u32 i = 0; i < scene->settings.primitives; i++, primitive++) {
-        if (!(primitive->type == PrimitiveType_Quad && scene->materials[primitive->material_id].uses & EMISSION))
+        if (!(primitive->type == PrimitiveType_Quad && scene->materials[primitive->material_id].flags & EMISSION))
             continue;
 
         convertPositionAndDirectionToObjectSpace(ray->origin, ray->direction, primitive, Ro, Rd);
@@ -84,10 +82,10 @@ INLINE bool hitEmissiveQuads(Ray *ray, Trace *trace, Scene *scene) {
 //    bool found = false;
 //
 //    vec3 *Ro = &trace->local_space_ray.origin;
-//    vec3 *Rd = &trace->local_space_ray.direction;
+//    vec3 *viewing_direction = &trace->local_space_ray.direction;
 //
-//    *Rd = ray->direction;
-//    *Ro = scaleAddVec3(*Rd, TRACE_OFFSET, ray->origin);
+//    *viewing_direction = ray->direction;
+//    *Ro = scaleAddVec3(*viewing_direction, TRACE_OFFSET, ray->origin);
 //    vec3 hit_position_in_plane_space;
 //
 //    RayHit *hit = &trace->current_hit;
@@ -95,7 +93,7 @@ INLINE bool hitEmissiveQuads(Ray *ray, Trace *trace, Scene *scene) {
 //
 //    AreaLight *area_light = scene->area_lights;
 //    for (u8 i = 0; i < scene->settings.area_lights; i++, area_light++)
-//        if (hitPlane(area_light->position, area_light->normal, Ro, Rd, hit) &&
+//        if (hitPlane(area_light->position, area_light->normal, Ro, viewing_direction, hit) &&
 //            hit->distance < closest_distance) {
 //
 //            hit_position_in_plane_space = subVec3(hit->position, area_light->position);
@@ -125,10 +123,10 @@ INLINE bool hitEmissiveQuads(Ray *ray, Trace *trace, Scene *scene) {
 //INLINE u32 collectAreaLightHits(Ray *ray, Trace *trace, Scene *scene) {
 //    f32 u, v;
 //    vec3 *Ro = &trace->local_space_ray.origin;
-//    vec3 *Rd = &trace->local_space_ray.direction;
+//    vec3 *viewing_direction = &trace->local_space_ray.direction;
 //
-//    *Rd = ray->direction;
-//    *Ro = scaleAddVec3(*Rd, TRACE_OFFSET, ray->origin);
+//    *viewing_direction = ray->direction;
+//    *Ro = scaleAddVec3(*viewing_direction, TRACE_OFFSET, ray->origin);
 //
 //    vec3 hit_position_in_plane_space;
 //
@@ -138,7 +136,7 @@ INLINE bool hitEmissiveQuads(Ray *ray, Trace *trace, Scene *scene) {
 //    u32 quad_light_hit_count = 0;
 //
 //    for (u32 i = 0; i < scene->settings.area_lights; i++, quad_light++) {
-//        if (!hitPlane(quad_light->position, quad_light->normal, Ro, Rd, hit)) continue;
+//        if (!hitPlane(quad_light->position, quad_light->normal, Ro, viewing_direction, hit)) continue;
 //
 //        hit_position_in_plane_space = subVec3(hit->position, quad_light->position);
 //        u = dotVec3(quad_light->U, hit_position_in_plane_space); if (u < 0 || u > quad_light->u_length) continue;

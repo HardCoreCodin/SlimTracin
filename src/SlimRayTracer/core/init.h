@@ -9,9 +9,9 @@
 #ifdef __CUDACC__
 
 #define checkErrors() gpuErrchk(cudaPeekAtLastError())
-#define uploadNto(cpu_ptr, gpu_ptr, N, offset) gpuErrchk(cudaMemcpy(&((gpu_ptr)[(offset)]), (cpu_ptr), sizeof((cpu_ptr)[0]) * (N), cudaMemcpyHostToDevice))
-#define uploadN(  cpu_ptr, gpu_ptr, N        ) gpuErrchk(cudaMemcpy(&((gpu_ptr)[0])       , (cpu_ptr), sizeof((cpu_ptr)[0]) * (N), cudaMemcpyHostToDevice))
-#define downloadN(gpu_ptr, cpu_ptr, N)         gpuErrchk(cudaMemcpyFromSymbol(cpu_ptr     , (gpu_ptr), sizeof((cpu_ptr)[0]) * (N), 0, cudaMemcpyDeviceToHost))
+#define uploadNto(cpu_ptr, gpu_ptr, normal, offset) gpuErrchk(cudaMemcpy(&((gpu_ptr)[(offset)]), (cpu_ptr), sizeof((cpu_ptr)[0]) * (normal), cudaMemcpyHostToDevice))
+#define uploadN(  cpu_ptr, gpu_ptr, normal        ) gpuErrchk(cudaMemcpy(&((gpu_ptr)[0])       , (cpu_ptr), sizeof((cpu_ptr)[0]) * (normal), cudaMemcpyHostToDevice))
+#define downloadN(gpu_ptr, cpu_ptr, normal)         gpuErrchk(cudaMemcpyFromSymbol(cpu_ptr     , (gpu_ptr), sizeof((cpu_ptr)[0]) * (normal), 0, cudaMemcpyDeviceToHost))
 
 __device__   u32 d_pixels[MAX_WIDTH * MAX_HEIGHT];
 

@@ -243,12 +243,13 @@ typedef struct Material {
     vec3 ambient, diffuse, specular, emission;
     f32 shininess, roughness, n1_over_n2, n2_over_n1;
     enum BRDFType brdf;
-    u8 uses;
+    u8 flags;
 } Material;
 
 typedef struct MaterialHas {
     bool diffuse,
          specular,
+         emission,
          reflection,
          refraction;
 } MaterialHas;
@@ -257,22 +258,14 @@ typedef struct MaterialUses {
     bool blinn, phong;
 } MaterialUses;
 
-typedef struct MaterialSpec {
-    MaterialHas has;
-    MaterialUses uses;
-} MaterialSpec;
-
-INLINE MaterialSpec decodeMaterialSpec(u8 uses) {
-    MaterialSpec mat;
-
-    mat.uses.phong = uses & (u8)PHONG;
-    mat.uses.blinn = uses & (u8)BLINN;
-    mat.has.diffuse = uses & (u8)LAMBERT;
-    mat.has.specular = mat.uses.phong || mat.uses.blinn;
-    mat.has.reflection = uses & (u8)REFLECTION;
-    mat.has.refraction = uses & (u8)REFRACTION;
-
-    return mat;
+INLINE void decodeMaterialSpec(u8 flags, MaterialHas *has, MaterialUses *uses) {
+    uses->phong = flags & (u8)PHONG;
+    uses->blinn = flags & (u8)BLINN;
+    has->emission = flags & (u8)EMISSION;
+    has->diffuse = flags & (u8)LAMBERT;
+    has->specular = uses->phong || uses->blinn;
+    has->reflection = flags & (u8)REFLECTION;
+    has->refraction = flags & (u8)REFRACTION;
 }
 
 // Lights:
