@@ -41,11 +41,12 @@ INLINE vec2 getUVonUnitSphere(vec3 direction) {
 }
 
 typedef struct SphereHit {
-    f32 b, c, t_near, t_far;
+    f32 b, c, t_near, t_far, furthest;
 } SphereHit;
 
 bool hitSphereSimple(vec3 Ro, vec3 Rd, vec3 target, f32 one_over_radius, f32 farthest, SphereHit *hit) {
     vec3 rc = scaleVec3(subVec3(target, Ro), one_over_radius);
+    hit->furthest = farthest * one_over_radius;
 
     hit->b = dotVec3(Rd, rc);
     hit->c = dotVec3(rc, rc) - 1;
@@ -58,7 +59,7 @@ bool hitSphereSimple(vec3 Ro, vec3 Rd, vec3 target, f32 one_over_radius, f32 far
     hit->t_near = hit->b - h;
     hit->t_far  = hit->b + h;
 
-    return hit->t_far > 0 && hit->t_near < farthest;
+    return hit->t_far > 0 && hit->t_near < hit->furthest;
 }
 
 INLINE bool hitSphere(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {

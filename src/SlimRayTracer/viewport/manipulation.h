@@ -75,8 +75,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                                         ray.direction,
                                         light->position_or_direction,
                                         8 / light->intensity,
-                                        hit->distance * 8 / light->intensity,
-                                        &sphere_hit)) {
+                                        hit->distance, &sphere_hit)) {
                         hit->distance = sphere_hit.t_near * light->intensity / 8;
                         hit->position = scaleAddVec3(ray.direction, hit->distance, ray.origin);
                         hit->object_type = PrimitiveType_Light;

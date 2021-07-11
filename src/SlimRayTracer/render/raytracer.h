@@ -118,10 +118,8 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
         if (light) {
             for (u32 i = 0; i < scene->settings.lights; i++, light++) {
                 one_over_light_radius = 8.0f / light->intensity;
-                if (hitSphereSimple(Ro, Rd, light->position_or_direction, one_over_light_radius,
-                                    max_distance * one_over_light_radius,
-                                    &sphere_hit)) {
-                    fog = computeFog(&sphere_hit, 0, max_distance * one_over_light_radius);
+                if (hitSphereSimple(Ro, Rd, light->position_or_direction, one_over_light_radius, max_distance, &sphere_hit)) {
+                    fog = computeFog(&sphere_hit);
                     fog = powf(fog, 8) * 8;
                     color = scaleAddVec3(light->color, fog, color);
                 }

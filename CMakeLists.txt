@@ -33,7 +33,7 @@ add_executable(SlimRayTracer_3_area_lights_XPU WIN32 src/examples/3_area_lights.
 set_target_properties(SlimRayTracer_3_area_lights_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON C_STANDARD 90)
 
 project(obj2mesh)
-add_executable(obj2mesh src/obj2mesh.c src/SlimRayTracer/render/shaders/closest_hit/fog.h)
+add_executable(obj2mesh src/obj2mesh.c)
 
 add_compile_options(
         $<$<CONFIG:RELEASE>:-O3>
