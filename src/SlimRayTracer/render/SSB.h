@@ -143,10 +143,10 @@ INLINE void updatePrimitiveSSB(Scene *scene, Viewport *viewport, Primitive *prim
     view_space_position = mulVec3Mat3(view_space_position, xform->rotation_matrix_inverted);
 
     switch (primitive->type) {
-        case PrimitiveType_Quad       : radius = lengthVec3(  primitive->scale);             break;
-        case PrimitiveType_Box        : radius = lengthVec3(  primitive->scale);             break;
-        case PrimitiveType_Tetrahedron: radius = maxCoordVec3(primitive->scale) * SQRT3 / 2; break;
-        case PrimitiveType_Sphere     : radius = maxCoordVec3(primitive->scale);             break;
+        case PrimitiveType_Quad       : radius = lengthVec3(  primitive->scale);         break;
+        case PrimitiveType_Box        : radius = lengthVec3(  primitive->scale);         break;
+        case PrimitiveType_Tetrahedron: radius = maxCoordVec3(primitive->scale) * SQRT2; break;
+        case PrimitiveType_Sphere     : radius = maxCoordVec3(primitive->scale);         break;
         case PrimitiveType_Mesh       :
             aabb   = &scene->meshes[primitive->id].aabb;
             min_r  = lengthVec3(mulVec3(primitive->scale, aabb->min));
