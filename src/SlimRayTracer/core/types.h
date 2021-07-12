@@ -153,6 +153,10 @@ typedef struct Camera {
     f32 zoom, dolly, target_distance;
 } Camera;
 
+typedef struct SphereHit {
+    f32 b, c, t_near, t_far, furthest;
+} SphereHit;
+
 typedef struct Ray {
     vec3 origin, scaled_origin, direction, direction_reciprocal;
     u8_3 octant;
@@ -167,6 +171,7 @@ typedef struct RayHit {
 } RayHit;
 
 typedef struct Trace {
+    SphereHit sphere_hit;
     RayHit closest_hit, closest_mesh_hit, current_hit, *quad_light_hits;
     Ray local_space_ray;
     u32 depth, *scene_stack, *mesh_stack;

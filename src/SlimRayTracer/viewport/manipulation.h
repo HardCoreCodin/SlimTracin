@@ -46,7 +46,6 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
     RayHit *hit = &trace->closest_hit;
     Ray ray, *local_ray = &trace->local_space_ray;
     Primitive primitive;
-    SphereHit sphere_hit;
 
     selection->transformed = false;
 
@@ -71,12 +70,14 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                                        mouse->pos.y);
             if (light) {
                 for (u32 i = 0; i < scene->settings.lights; i++, light++) {
+                    f32 light_radius = light->intensity / 8;
+                    trace->sphere_hit.furthest = hit->distance / light_radius;
                     if (hitSphereSimple(ray.origin,
                                         ray.direction,
                                         light->position_or_direction,
-                                        8 / light->intensity,
-                                        hit->distance, &sphere_hit)) {
-                        hit->distance = sphere_hit.t_near * light->intensity / 8;
+                                        1.0f / light_radius,
+                                        &trace->sphere_hit)) {
+                        hit->distance = trace->sphere_hit.t_near * light_radius;
                         hit->position = scaleAddVec3(ray.direction, hit->distance, ray.origin);
                         hit->object_type = PrimitiveType_Light;
                         hit->object_id = i;

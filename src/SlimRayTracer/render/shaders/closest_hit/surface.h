@@ -2,13 +2,15 @@
 
 #include "../trace.h"
 #include "../common.h"
+#include "../intersection/sphere.h"
+#include "./fog.h"
 
 typedef struct Shaded {
     Primitive *primitive;
     Material *material;
     MaterialHas has;
     MaterialUses uses;
-    vec3 position, normal, viewing_direction, reflected_direction, light_direction, emissive_quad_vertices[4];
+    vec3 position, normal, viewing_direction, viewing_origin, reflected_direction, light_direction, emissive_quad_vertices[4];
 } Shaded;
 
 INLINE vec3 shadePointOnSurface(Shaded *shaded, f32 NdotL) {
@@ -130,18 +132,35 @@ INLINE vec3 shadeFromEmissiveQuads(Shaded *shaded, Ray *ray, Trace *trace, Scene
 
     return color;
 }
+
+INLINE void shadeLights(Light *lights, u32 light_count, vec3 Ro, vec3 Rd, f32 max_distance, SphereHit *sphere_hit, vec3 *color) {
+    Light *light = lights;
+    f32 fog, one_over_light_radius;
+    for (u32 i = 0; i < light_count; i++, light++) {
+        one_over_light_radius = 8.0f / light->intensity;
+        sphere_hit->furthest = max_distance * one_over_light_radius;
+        if (hitSphereSimple(Ro, Rd, light->position_or_direction, one_over_light_radius, sphere_hit)) {
+            fog = computeFog(sphere_hit);
+            fog = powf(fog, 8) * 8;
+            *color = scaleAddVec3(light->color, fog, *color);
+        }
+    }
+}
+
 INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
     RayHit *hit = &trace->closest_hit;
     if (scene->materials[trace->closest_hit.material_id].flags & EMISSION)
         return hit->from_behind ? getVec3Of(0) : scene->materials[trace->closest_hit.material_id].emission;
 
     Shaded shaded;
-    shaded.primitive = scene->primitives + hit->object_id;
+    shaded.viewing_origin    = ray->origin;
     shaded.viewing_direction = ray->direction;
-    shaded.material = scene->materials + hit->material_id;
+    shaded.primitive = scene->primitives + hit->object_id;
+    shaded.material  = scene->materials  + hit->material_id;
     decodeMaterialSpec(shaded.material->flags, &shaded.has, &shaded.uses);
 
-    f32 NdotRd, ior;
+    f32 NdotRd, ior, fog, one_over_light_radius, max_distance = hit->distance;
+    Light *light;
 
     bool scene_has_emissive_quads = false;
     for (u32 i = 0; i < scene->settings.primitives; i++)
@@ -173,6 +192,15 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
 
         color = mulAddVec3(current_color, throughput, color);
 
+        if (scene->lights)
+            shadeLights(scene->lights,
+                        scene->settings.lights,
+                        shaded.viewing_origin,
+                        shaded.viewing_direction,
+                        max_distance,
+                        &trace->sphere_hit,
+                        &color);
+
         if (is_ref && --depth) {
             if (shaded.has.reflection) {
                 ray->direction = shaded.reflected_direction;
@@ -183,10 +211,8 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
                     ray->direction.z == 0)
                     ray->direction = shaded.reflected_direction;
             }
-            shaded.viewing_direction = ray->direction;
             if (traceRay(ray, trace, scene)) {
                 shaded.primitive = scene->primitives + hit->object_id;
-                shaded.viewing_direction = ray->direction;
                 shaded.material = scene->materials + hit->material_id;
                 decodeMaterialSpec(shaded.material->flags, &shaded.has, &shaded.uses);
 
@@ -196,8 +222,19 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
                 }
                 throughput = mulVec3(throughput, shaded.material->specular);
 
+                max_distance = hit->distance;
+                shaded.viewing_origin    = ray->origin;
+                shaded.viewing_direction = ray->direction;
+
                 continue;
-            }
+            } else if (scene->lights)
+                shadeLights(scene->lights,
+                            scene->settings.lights,
+                            ray->origin,
+                            ray->direction,
+                            INFINITY,
+                            &trace->sphere_hit,
+                            &color);
         }
 
         break;
