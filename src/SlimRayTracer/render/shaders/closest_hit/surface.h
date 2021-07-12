@@ -140,7 +140,7 @@ INLINE void shadeLights(Light *lights, u32 light_count, vec3 Ro, vec3 Rd, f32 ma
         one_over_light_radius = 8.0f / light->intensity;
         sphere_hit->furthest = max_distance * one_over_light_radius;
         if (hitSphereSimple(Ro, Rd, light->position_or_direction, one_over_light_radius, sphere_hit)) {
-            fog = computeFog(sphere_hit);
+            fog = getSphericalFogDensity(sphere_hit);
             fog = powf(fog, 8) * 8;
             *color = scaleAddVec3(light->color, fog, *color);
         }
@@ -159,8 +159,7 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
     shaded.material  = scene->materials  + hit->material_id;
     decodeMaterialSpec(shaded.material->flags, &shaded.has, &shaded.uses);
 
-    f32 NdotRd, ior, fog, one_over_light_radius, max_distance = hit->distance;
-    Light *light;
+    f32 NdotRd, ior, max_distance = hit->distance;
 
     bool scene_has_emissive_quads = false;
     for (u32 i = 0; i < scene->settings.primitives; i++)

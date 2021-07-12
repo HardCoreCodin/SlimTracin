@@ -40,7 +40,7 @@ INLINE vec2 getUVonUnitSphere(vec3 direction) {
     return uv;
 }
 
-bool hitSphereSimple(vec3 Ro, vec3 Rd, vec3 target, f32 one_over_radius, SphereHit *hit) {
+INLINE bool hitSphereSimple(vec3 Ro, vec3 Rd, vec3 target, f32 one_over_radius, SphereHit *hit) {
     vec3 rc = scaleVec3(subVec3(target, Ro), one_over_radius);
 
     hit->b = dotVec3(Rd, rc);

@@ -15,7 +15,7 @@ Primitive getSelectedPrimitive(Scene *scene) {
     Primitive primitive;
     Selection *selection = scene->selection;
     if (scene->selection->object_type == PrimitiveType_Light) {
-        primitive.type = selection->object_type;
+        primitive.type = (PrimitiveType)selection->object_type;
         primitive.id   = selection->object_id;
         primitive.position = scene->lights[selection->object_id].position_or_direction;
         primitive.scale = getVec3Of(scene->lights[selection->object_id].intensity / 8);

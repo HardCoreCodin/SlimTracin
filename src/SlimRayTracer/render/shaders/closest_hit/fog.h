@@ -3,7 +3,7 @@
 #include "../../../math/vec3.h"
 #include "../intersection/sphere.h"
 
-f32 computeFog(SphereHit *hit) {
+INLINE f32 getSphericalFogDensity(SphereHit *hit) {
     // clip integration segment from camera to max_distance
     f32 t1 = hit->t_near > 0  ? hit->t_near : 0;
     f32 t2 = hit->t_far  < hit->furthest ? hit->t_far : hit->furthest;
