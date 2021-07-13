@@ -21,15 +21,21 @@ Features:
 All features of SlimEngine are available here as well.<br>
 Additional features include raytracing facilities:<br>
 
-* Lights: Point/Directional and emissive quads.<br>
+* Lights: Point/Directional and emissive quads<br>
   <img src="src/examples/1_lights.gif" alt="1_lights" height="360"><br>
   Point lights can be moved around and scaled (changing their light intensity)<br>
   <p float="left">
     <img src="src/examples/1_lights_scene_setup_c.png" alt="1_lights_scene_setup_code" width="360">
     <img src="src/examples/1_lights_update_and_render_c.png" alt="1_lights_update_and_render_code" height="300">
   </p>
+* Shapes: Parametric 3D shapes such as Spheres, Boxes and Tetrahedra<br>
+  <img src="src/examples/2_shapes.gif" alt="1_lights" height="360"><br>
+  All shapes can be transformed (as in SlimEngine)<br>
+  <p float="left">
+    <img src="src/examples/2_shapes_scene_setup_c.png" alt="2_shapes_scene_setup_code" width="360">
+    <img src="src/examples/2_shapes_update_and_render_c.png" alt="2_shapes_update_and_render_code" height="300">
+  </p>
 * Materials with reflection/refraction or classical shaders.<br>
-* Parametric 3D shapes (Sphere, Box, Tetrahedra).<br>
 * Meshes with vertex normal interpolation.<br>
 * Spatial acceleration structures for scene and meshes.<br>
 * Screen-space acceleration structure for primary rays.<br>

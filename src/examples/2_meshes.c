@@ -85,8 +85,8 @@ void initApp(Defaults *defaults) {
     defaults->settings.viewport.hud_default_color = Green;
 
     app->on.keyChanged               = onKeyChanged;
-    app->on.mouseButtonDown          = onButtonDown;
-    app->on.mouseButtonDoubleClicked = onDoubleClick;
+    app->on.mouseButtonDown          = resetMouseRawMovement;
+    app->on.mouseButtonDoubleClicked = toggleMouseCapturing;
     app->on.windowResize  = onResize;
     app->on.windowRedraw  = updateAndRender;
     app->on.sceneReady    = setupScene;

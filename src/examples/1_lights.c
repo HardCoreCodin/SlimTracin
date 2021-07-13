@@ -25,23 +25,6 @@ void updateAndRender() {
     endFrameTimer(timer);
 }
 
-void onKeyChanged(u8 key, bool is_pressed) {
-    NavigationMove *move = &app->viewport.navigation.move;
-    if (key == 'R') move->up       = is_pressed;
-    if (key == 'F') move->down     = is_pressed;
-    if (key == 'W') move->forward  = is_pressed;
-    if (key == 'A') move->left     = is_pressed;
-    if (key == 'S') move->backward = is_pressed;
-    if (key == 'D') move->right    = is_pressed;
-}
-
-void setupViewport(Viewport *viewport) {
-    viewport->trace.depth = 4;
-    viewport->camera->transform.position.y = 7;
-    viewport->camera->transform.position.z = -11;
-    rotateXform3(&viewport->camera->transform, 0, -0.2f, 0);
-}
-
 void setupScene(Scene *scene) {
     Primitive *plane = scene->primitives;
     plane->type = PrimitiveType_Quad;
@@ -65,9 +48,9 @@ void initApp(Defaults *defaults) {
     defaults->settings.scene.materials  = 1;
     defaults->settings.scene.primitives = 1;
     app->on.sceneReady    = setupScene;
-    app->on.viewportReady = setupViewport;
+    app->on.viewportReady = setupCamera;
     app->on.windowRedraw  = updateAndRender;
-    app->on.keyChanged               = onKeyChanged;
-    app->on.mouseButtonDown          = onButtonDown;
-    app->on.mouseButtonDoubleClicked = onDoubleClick;
+    app->on.keyChanged               = updateNavigation;
+    app->on.mouseButtonDown          = resetMouseRawMovement;
+    app->on.mouseButtonDoubleClicked = toggleMouseCapturing;
 }

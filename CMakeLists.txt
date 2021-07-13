@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.8)
 
-project(SlimRayTracer_1_shapes)
-add_executable(SlimRayTracer_1_shapes WIN32 src/examples/1_shapes.c)
-set_target_properties(SlimRayTracer_1_shapes PROPERTIES C_STANDARD 90)
-
 project(SlimRayTracer_1_lights)
 add_executable(SlimRayTracer_1_lights WIN32 src/examples/1_lights.c)
 set_target_properties(SlimRayTracer_1_lights PROPERTIES C_STANDARD 90)
+
+project(SlimRayTracer_2_shapes)
+add_executable(SlimRayTracer_2_shapes WIN32 src/examples/2_shapes.c)
+set_target_properties(SlimRayTracer_2_shapes PROPERTIES C_STANDARD 90)
 
 project(SlimRayTracer_2_mesh)
 add_executable(SlimRayTracer_2_meshes WIN32 src/examples/2_meshes.c)

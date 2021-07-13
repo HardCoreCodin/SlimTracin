@@ -34,34 +34,18 @@ void setupLights(Scene *scene) {
     scene->ambient_light.color.y = 0.008f;
     scene->ambient_light.color.z = 0.014f;
 
-    Light *key_light  = scene->lights + 0;
-    Light *fill_light = scene->lights + 1;
-    Light *rim_light  = scene->lights + 2;
-
-    key_light->position_or_direction.x = 10;
-    key_light->position_or_direction.y = 10;
-    key_light->position_or_direction.z = -5;
-    rim_light->position_or_direction.x = 2;
-    rim_light->position_or_direction.y = 5;
-    rim_light->position_or_direction.z = 12;
-    fill_light->position_or_direction.x = -10;
-    fill_light->position_or_direction.y = 10;
-    fill_light->position_or_direction.z = -5;
-
-    key_light->color.x = 1;
-    key_light->color.y = 1;
-    key_light->color.z = 0.65f;
-    rim_light->color.x = 1;
-    rim_light->color.y = 0.25f;
-    rim_light->color.z = 0.25f;
-    fill_light->color.x = 0.65f;
-    fill_light->color.y = 0.65f;
-    fill_light->color.z = 1;
-
+    Light *key_light  = &scene->lights[0];
+    Light *fill_light = &scene->lights[1];
+    Light *rim_light  = &scene->lights[2];
     key_light->intensity  = 1.3f * 4;
     rim_light->intensity  = 1.5f * 4;
     fill_light->intensity = 1.1f * 4;
-    key_light->is_directional = fill_light->is_directional = rim_light->is_directional = false;
+    key_light->color  = Vec3(1.0f,  1.0f,  0.65f);
+    rim_light->color  = Vec3(1.0f,  0.25f, 0.25f);
+    fill_light->color = Vec3(0.65f, 0.65f, 1.0f );
+    key_light->position_or_direction  = Vec3( 10, 10, -5);
+    rim_light->position_or_direction  = Vec3(  2,  5, 12);
+    fill_light->position_or_direction = Vec3(-10, 10, -5);
 }
 
 void setupMaterials(Scene *scene) {
@@ -103,16 +87,16 @@ void setDimensionsInHUD(HUD *hud, i32 width, i32 height) {
     printNumberIntoString(width,  &hud->lines[HUD_LINE_Width ].value);
     printNumberIntoString(height, &hud->lines[HUD_LINE_Height].value);
 }
-void onButtonDown(MouseButton *mouse_button) {
+void resetMouseRawMovement(MouseButton *mouse_button) {
     app->controls.mouse.pos_raw_diff.x = 0;
     app->controls.mouse.pos_raw_diff.y = 0;
 }
-void onDoubleClick(MouseButton *mouse_button) {
+void toggleMouseCapturing(MouseButton *mouse_button) {
     if (mouse_button == &app->controls.mouse.left_button) {
         app->controls.mouse.is_captured = !app->controls.mouse.is_captured;
         app->platform.setCursorVisibility(!app->controls.mouse.is_captured);
         app->platform.setWindowCapture(    app->controls.mouse.is_captured);
-        onButtonDown(mouse_button);
+        resetMouseRawMovement(mouse_button);
     }
 }
 void drawSceneMessage(Scene *scene, Viewport *viewport) {
@@ -365,6 +349,22 @@ void saveOrLoadScene(Scene *scene, Viewport *viewport, Platform *platform, bool 
 //    }
 //}
 
+void updateNavigation(u8 key, bool is_pressed) {
+    NavigationMove *move = &app->viewport.navigation.move;
+    if (key == 'R') move->up       = is_pressed;
+    if (key == 'F') move->down     = is_pressed;
+    if (key == 'W') move->forward  = is_pressed;
+    if (key == 'A') move->left     = is_pressed;
+    if (key == 'S') move->backward = is_pressed;
+    if (key == 'D') move->right    = is_pressed;
+}
+
+void setupCamera(Viewport *viewport) {
+    viewport->trace.depth = 4;
+    viewport->camera->transform.position.y = 7;
+    viewport->camera->transform.position.z = -11;
+    rotateXform3(&viewport->camera->transform, 0, -0.2f, 0);
+}
 
 void onResize(u16 width, u16 height) {
     setDimensionsInHUD(&app->viewport.hud, width, height);

@@ -196,6 +196,13 @@ INLINE vec3 Vec3(f32 x, f32 y, f32 z) {
     return out;
 }
 
+INLINE quat Quat(vec3 axis, f32 amout) {
+    quat out;
+    out.axis = axis;
+    out.amount = amout;
+    return out;
+}
+
 #define Kilobytes(value) ((value)*1024LL)
 #define Megabytes(value) (Kilobytes(value)*1024LL)
 #define Gigabytes(value) (Megabytes(value)*1024LL)
