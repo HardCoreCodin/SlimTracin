@@ -8,9 +8,9 @@ project(SlimRayTracer_2_shapes)
 add_executable(SlimRayTracer_2_shapes WIN32 src/examples/2_shapes.c)
 set_target_properties(SlimRayTracer_2_shapes PROPERTIES C_STANDARD 90)
 
-project(SlimRayTracer_2_mesh)
-add_executable(SlimRayTracer_2_meshes WIN32 src/examples/2_meshes.c)
-set_target_properties(SlimRayTracer_2_meshes PROPERTIES C_STANDARD 90)
+project(SlimRayTracer_3_mesh)
+add_executable(SlimRayTracer_3_meshes WIN32 src/examples/3_meshes.c)
+set_target_properties(SlimRayTracer_3_meshes PROPERTIES C_STANDARD 90)
 
 project(SlimRayTracer_3_area_lights)
 add_executable(SlimRayTracer_3_area_lights WIN32 src/examples/3_area_lights.c)

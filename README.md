@@ -28,13 +28,19 @@ Additional features include raytracing facilities:<br>
     <img src="src/examples/1_lights_update_and_render_c.png" alt="1_lights_update_and_render_code" height="300">
   </p>
 * Parametric 3D shapes: Spheres, Boxes, Tetrahedra<br>
-  <img src="src/examples/2_shapes.gif" alt="1_lights" height="360"><br>
+  <img src="src/examples/2_shapes.gif" alt="2_shapes" height="360"><br>
   <p float="left">
     <img src="src/examples/2_shapes_scene_setup_c.png" alt="2_shapes_scene_setup_code" width="360">
-    <img src="src/examples/2_shapes_update_and_render_c.png" alt="2_shapes_update_and_render_code" height="350">
+    <img src="src/examples/2_shapes_update_and_render_c.png" alt="2_shapes_update_and_render_code" height="370">
   </p>
+* Meshes: Transformable and rendered using vertex normal interpolation<br>
+  <img src="src/examples/3_meshes_shapes.gif" alt="3_meshes" height="360"><br>
+  <p float="left">
+    <img src="src/examples/3_meshes_scene_setup_c.png" alt="3_meshes_scene_setup_code" height="400">
+    <img src="src/examples/3_meshes_update_and_render_c.png" alt="3_meshes_update_and_render_code" height="400">
+  </p>
+  
 * Materials with reflection/refraction or classical shaders.<br>
-* Meshes with vertex normal interpolation.<br>
 * Spatial acceleration structures for scene and meshes.<br>
 * Screen-space acceleration structure for primary rays.<br>
 
