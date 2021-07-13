@@ -188,6 +188,14 @@ typedef struct Rect { vec2i min, max; } Rect;
 typedef struct RGBA { u8 B, G, R, A; } RGBA;
 typedef union  Pixel { RGBA color; u32 value; } Pixel;
 
+INLINE vec3 Vec3(f32 x, f32 y, f32 z) {
+    vec3 out;
+    out.x = x;
+    out.y = y;
+    out.z = z;
+    return out;
+}
+
 #define Kilobytes(value) ((value)*1024LL)
 #define Megabytes(value) (Kilobytes(value)*1024LL)
 #define Gigabytes(value) (Megabytes(value)*1024LL)

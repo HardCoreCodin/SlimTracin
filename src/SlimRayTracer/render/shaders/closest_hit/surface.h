@@ -3,15 +3,7 @@
 #include "../trace.h"
 #include "../common.h"
 #include "../intersection/sphere.h"
-#include "./fog.h"
-
-typedef struct Shaded {
-    Primitive *primitive;
-    Material *material;
-    MaterialHas has;
-    MaterialUses uses;
-    vec3 position, normal, viewing_direction, viewing_origin, reflected_direction, light_direction, emissive_quad_vertices[4];
-} Shaded;
+#include "./lights.h"
 
 INLINE vec3 shadePointOnSurface(Shaded *shaded, f32 NdotL) {
     if (shaded->has.specular) {
@@ -131,20 +123,6 @@ INLINE vec3 shadeFromEmissiveQuads(Shaded *shaded, Ray *ray, Trace *trace, Scene
     }
 
     return color;
-}
-
-INLINE void shadeLights(Light *lights, u32 light_count, vec3 Ro, vec3 Rd, f32 max_distance, SphereHit *sphere_hit, vec3 *color) {
-    Light *light = lights;
-    f32 fog, one_over_light_radius;
-    for (u32 i = 0; i < light_count; i++, light++) {
-        one_over_light_radius = 8.0f / light->intensity;
-        sphere_hit->furthest = max_distance * one_over_light_radius;
-        if (hitSphereSimple(Ro, Rd, light->position_or_direction, one_over_light_radius, sphere_hit)) {
-            fog = getSphericalFogDensity(sphere_hit);
-            fog = powf(fog, 8) * 8;
-            *color = scaleAddVec3(light->color, fog, *color);
-        }
-    }
 }
 
 INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {

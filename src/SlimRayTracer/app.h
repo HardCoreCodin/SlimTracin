@@ -2,6 +2,7 @@
 
 #include "./core/init.h"
 #include "./scene/io.h"
+#include "./render/SSB.h"
 #include "./render/acceleration_structures/builder_top_down.h"
 
 typedef struct App {
@@ -30,6 +31,7 @@ void _windowRedraw() {
 void _windowResize(u16 width, u16 height) {
     if (!app->is_running) return;
     updateDimensions(&app->window_content.dimensions, width, height);
+    updateSceneSSB(&app->scene, &app->viewport);
 
     if (app->on.windowResize) app->on.windowResize(width, height);
     if (app->on.windowRedraw) app->on.windowRedraw();
@@ -147,8 +149,30 @@ void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *
             scene->mesh_triangle_counts[i] = scene->meshes[i].triangle_count;
         }
     }
-    if (settings->materials)   scene->materials    = (Material*  )allocateMemory(memory, sizeof(Material ) * settings->materials);
-    if (settings->lights)      scene->lights       = (Light*     )allocateMemory(memory, sizeof(Light    ) * settings->lights);
+    if (settings->materials)   {
+        Material *material = scene->materials = (Material*)allocateMemory(memory, sizeof(Material) * settings->materials);
+        for (u32 i = 0; i < settings->materials; i++, material++) {
+            material->specular   = getVec3Of(1);
+            material->emission   = getVec3Of(1);
+            material->diffuse    = getVec3Of(1);
+            material->roughness  = 1;
+            material->shininess  = 1;
+            material->n1_over_n2 = 1;
+            material->n2_over_n1 = 1;
+            material->flags      = LAMBERT;
+        }
+    }
+    if (settings->lights) {
+        Light *light = scene->lights = (Light*)allocateMemory(memory, sizeof(Light) * settings->lights);
+        for (u32 i = 0; i < settings->lights; i++, light++) {
+            light->position_or_direction = getVec3Of(0);
+            light->color                 = getVec3Of(1);
+            light->attenuation           = getVec3Of(1);
+            light->intensity = 1;
+            light->is_directional = false;
+        }
+    }
+
     if (settings->area_lights) scene->area_lights  = (AreaLight* )allocateMemory(memory, sizeof(AreaLight) * settings->area_lights);
 
     if (settings->cameras) {
@@ -166,6 +190,9 @@ void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *
                 scene->primitives[i].id = i;
             }
     }
+
+    scene->last_io_ticks = platform->getTicks();
+    scene->last_io_is_save = false;
 
     initBVH(&scene->bvh, settings->primitives, memory);
 
@@ -250,6 +277,8 @@ void _initApp(Defaults *defaults, void* window_content_memory) {
     uploadScene(scene);
     updateSceneBVH(scene, builder);
     uploadMeshBVHs(scene);
+
+    initTrace(&viewport->trace, &app->scene, &app->memory);
 
     if (viewport_settings->hud_line_count)
         viewport_settings->hud_lines = (HUDLine*)allocateAppMemory(viewport_settings->hud_line_count * sizeof(HUDLine));

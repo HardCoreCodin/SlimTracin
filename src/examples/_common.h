@@ -17,8 +17,7 @@ enum HUDLineID {
     HUD_LINE_Mode
 };
 
-u64 scene_io_time;
-bool last_scene_io_is_save;
+
 
 enum MaterialIDs {
     MaterialID_Wall,
@@ -35,7 +34,7 @@ void setupLights(Scene *scene) {
     scene->ambient_light.color.y = 0.008f;
     scene->ambient_light.color.z = 0.014f;
 
-    Light *key_light  = scene->lights;
+    Light *key_light  = scene->lights + 0;
     Light *fill_light = scene->lights + 1;
     Light *rim_light  = scene->lights + 2;
 
@@ -84,11 +83,6 @@ void setupMaterials(Scene *scene) {
 
     Material* material = scene->materials;
     for (u32 i = 0; i < scene->settings.materials; i++, material++) {
-        material->diffuse = getVec3Of(1);
-        material->specular = getVec3Of(1);
-        material->emission = getVec3Of(1);
-        material->roughness = 1;
-        material->shininess = 1;
         material->n1_over_n2 = IOR_AIR / IOR_GLASS;
         material->n2_over_n1 = IOR_GLASS / IOR_AIR;
     }
@@ -121,15 +115,35 @@ void onDoubleClick(MouseButton *mouse_button) {
         onButtonDown(mouse_button);
     }
 }
+void drawSceneMessage(Scene *scene, Viewport *viewport) {
+    f64 now = (f64)app->time.getTicks();
+    f64 tps = (f64)app->time.ticks.per_second;
+    if ((now - (f64)scene->last_io_ticks) / tps <= 2.0) {
+        PixelGrid *canvas = viewport->frame_buffer;
+        char *message;
+        RGBA color;
+        if (scene->last_io_is_save) {
+            message = (char*)"   Scene saved to: ";
+            color = Color(Yellow);
+        } else {
+            message = (char*)"Scene loaded from: ";
+            color = Color(Cyan);
+        }
+        i32 x = 10;
+        i32 y = 20;
+        drawText(canvas, color, message, x, y);
+        drawText(canvas, color, scene->settings.file.char_ptr, x + 100, y);
+    }
+}
 void drawSceneToViewport(Scene *scene, Viewport *viewport) {
     fillPixelGrid(viewport->frame_buffer, Color(Black));
     renderScene(scene, viewport);
     if (viewport->settings.show_BVH) drawBVH(scene, viewport);
     if (viewport->settings.show_SSB) drawSSB(scene, viewport);
 }
-void setupViewport(Viewport *viewport) {
+
+void setupHUD(Viewport *viewport) {
     Dimensions *dim = &viewport->frame_buffer->dimensions;
-    u16 fps = app->time.timers.update.average_frames_per_second;
     i32 bounces = (i32)viewport->trace.depth;
     HUD *hud = &viewport->hud;
     hud->line_height = 1.2f;
@@ -156,7 +170,7 @@ void setupViewport(Viewport *viewport) {
                                       line_id == HUD_LINE_SSB ? &viewport->settings.show_SSB :
                                       &viewport->settings.use_GPU;
                 break;
-            case HUD_LINE_FPS:     printNumberIntoString(fps, num); break;
+            case HUD_LINE_FPS:     printNumberIntoString(0, num); break;
             case HUD_LINE_Width:   printNumberIntoString(dim->width, num); break;
             case HUD_LINE_Height:  printNumberIntoString(dim->height, num); break;
             case HUD_LINE_Bounces: printNumberIntoString(bounces, num); break;
@@ -183,17 +197,17 @@ void setupViewport(Viewport *viewport) {
                 break;
         }
     }
-
-    xform3 *camera_xform = &viewport->camera->transform;
-    camera_xform->position.y = 7;
-    camera_xform->position.z = -11;
-    rotateXform3(camera_xform, 0, -0.2f, 0);
-
-    initTrace(&viewport->trace, &app->scene, &app->memory);
-
-    viewport->trace.depth = 4;
-    scene_io_time = 0;
 }
+
+//void setupViewport(Viewport *viewport) {
+//    viewport->trace.depth = 4;
+//    viewport->camera->transform.position.y = 7;
+//    viewport->camera->transform.position.z = -11;
+//    rotateXform3(&viewport->camera->transform, 0, -0.2f, 0);
+//
+//    setupHUD(viewport);
+//}
+
 void updateViewport(Viewport *viewport, Mouse *mouse) {
     if (mouse->is_captured) {
         if (mouse->moved)         orientViewport(viewport, mouse);
@@ -218,141 +232,140 @@ void updateViewport(Viewport *viewport, Mouse *mouse) {
 
 void onUpdate(Scene *scene, f32 delta_time);
 
-void updateAndRender() {
-    Timer *timer = &app->time.timers.update;
-    Controls *controls = &app->controls;
-    Viewport *viewport = &app->viewport;
+void manipulateMaterial(Controls *controls, Viewport *viewport, Primitive *selected_primitive, u32 last_material_id) {
     Mouse *mouse = &controls->mouse;
-    Scene *scene = &app->scene;
+    bool down = mouse->wheel_scroll_amount < 0;
+    u32 amount = (u32)(down ? -mouse->wheel_scroll_amount : mouse->wheel_scroll_amount);
+    if (amount / 50 > 0) {
+        mouse->wheel_scroll_handled = true;
 
-    startFrameTimer(timer);
-
-    onUpdate(scene, timer->delta_time);
-
-    if (mouse->is_captured) {
-        navigateViewport(viewport, timer->delta_time);
-    } else {
-        manipulateSelection(scene, viewport, controls);
-        if (scene->selection->transformed) updateScene(scene, viewport);
-    }
-
-    if (!controls->is_pressed.alt)
-        updateViewport(viewport, mouse);
-
-    drawSceneToViewport(scene, viewport);
-    drawSelection(scene, viewport, controls);
-
-    if (viewport->settings.show_hud) {
-        printNumberIntoString(app->time.timers.update.average_frames_per_second, &viewport->hud.lines[HUD_LINE_FPS].value);
-        printNumberIntoString((i32)viewport->trace.depth, &viewport->hud.lines[HUD_LINE_Bounces].value);
-        printNumberIntoString(scene->selection->primitive ? scene->selection->primitive->material_id : 0, &viewport->hud.lines[HUD_LINE_MatID].value);
-        drawHUD(viewport->frame_buffer, &viewport->hud);
-    }
-    f64 now = (f64)app->time.getTicks();
-    f64 tps = (f64)app->time.ticks.per_second;
-    if ((now - (f64)scene_io_time) / tps <= 2.0) {
-        PixelGrid *canvas = viewport->frame_buffer;
-        char *message;
-        RGBA color;
-        if (last_scene_io_is_save) {
-            message = (char*)"   Scene saved to: ";
-            color = Color(Yellow);
-        } else {
-            message = (char*)"Scene loaded from: ";
-            color = Color(Cyan);
-        }
-        i32 x = 10;
-        i32 y = 20;
-        drawText(canvas, color, message, x, y);
-        drawText(canvas, color, scene->settings.file.char_ptr, x + 100, y);
-    }
-    if (controls->is_pressed.shift && mouse->wheel_scrolled) {
-        bool down = mouse->wheel_scroll_amount < 0;
-        u32 amount = (u32)(down ? -mouse->wheel_scroll_amount : mouse->wheel_scroll_amount);
-        if (amount / 50 > 0) {
-            mouse->wheel_scroll_handled = true;
-
-            Selection *selection = scene->selection;
-            if (controls->is_pressed.ctrl) {
-                Trace *trace = &viewport->trace;
-                if (down) {
-                    if (trace->depth > 1)
-                        trace->depth--;
-                } else {
-                    if (trace->depth < 5)
-                        trace->depth++;
-                }
-            } else if (selection->object_type && selection->primitive) {
-                if (down) {
-                    if (selection->primitive->material_id)
-                        selection->primitive->material_id--;
-                    else
-                        selection->primitive->material_id = scene->settings.materials - 1;
-                } else {
-                    if (selection->primitive->material_id == scene->settings.materials - 1)
-                        selection->primitive->material_id = 0;
-                    else
-                        selection->primitive->material_id++;
-                }
+        if (controls->is_pressed.ctrl) {
+            if (down) {
+                if (viewport->trace.depth > 1)
+                    viewport->trace.depth--;
+            } else {
+                if (viewport->trace.depth < 5)
+                    viewport->trace.depth++;
             }
-
-        }
-    }
-    resetMouseChanges(mouse);
-    endFrameTimer(timer);
-}
-void onKeyChanged(u8 key, bool is_pressed) {
-    Scene *scene = &app->scene;
-    Platform *platform = &app->platform;
-    NavigationMove *move = &app->viewport.navigation.move;
-    if (key == 'R') move->up       = is_pressed;
-    if (key == 'F') move->down     = is_pressed;
-    if (key == 'W') move->forward  = is_pressed;
-    if (key == 'A') move->left     = is_pressed;
-    if (key == 'S') move->backward = is_pressed;
-    if (key == 'D') move->right    = is_pressed;
-
-    if (!is_pressed) {
-        Viewport *viewport = &app->viewport;
-        ViewportSettings *settings = &viewport->settings;
-        if (key == app->controls.key_map.tab)
-            settings->show_hud = !settings->show_hud;
-
-        if (app->controls.is_pressed.ctrl &&
-            key == 'S' || key == 'Z') {
-            last_scene_io_is_save = key == 'S';
-            char *file = scene->settings.file.char_ptr;
-            if (last_scene_io_is_save)
-                saveSceneToFile(  scene, file, platform);
-            else {
-                loadSceneFromFile(scene, file, platform);
-                updateScene(scene, viewport);
+            printNumberIntoString((i32)viewport->trace.depth, &viewport->hud.lines[HUD_LINE_Bounces].value);
+        } else if (selected_primitive) {
+            if (down) {
+                if (selected_primitive->material_id)
+                    selected_primitive->material_id--;
+                else
+                    selected_primitive->material_id = last_material_id;
+            } else {
+                if (selected_primitive->material_id == last_material_id)
+                    selected_primitive->material_id = 0;
+                else
+                    selected_primitive->material_id++;
             }
-            scene_io_time = app->time.getTicks();
         }
-
-        if (key == 'T' && scene->selection->primitive) {
-            if (scene->selection->primitive->flags & IS_TRANSPARENT)
-                scene->selection->primitive->flags &= ~IS_TRANSPARENT;
-            else
-                scene->selection->primitive->flags |= IS_TRANSPARENT;
-        }
-        if (key == 'G') settings->use_GPU = USE_GPU_BY_DEFAULT ? !settings->use_GPU : false;
-        if (key == '9') settings->show_BVH = !settings->show_BVH;
-        if (key == '0') settings->show_SSB = !settings->show_SSB;
-        if (key == '1') settings->render_mode = RenderMode_Beauty;
-        if (key == '2') settings->render_mode = RenderMode_Depth;
-        if (key == '3') settings->render_mode = RenderMode_Normals;
-        if (key == '4') settings->render_mode = RenderMode_UVs;
-        if (key >= '1' &&
-            key <= '4')
-            setRenderModeString(settings->render_mode,
-                                &viewport->hud.lines[HUD_LINE_Mode].value.string);
     }
 }
+
+//void updateAndRender() {
+//    Timer *timer = &app->time.timers.update;
+//    Controls *controls = &app->controls;
+//    Viewport *viewport = &app->viewport;
+//    Mouse *mouse = &controls->mouse;
+//    Scene *scene = &app->scene;
+//
+//    startFrameTimer(timer);
+//
+//    onUpdate(scene, timer->delta_time);
+//
+//    if (mouse->is_captured)
+//        navigateViewport(viewport, timer->delta_time);
+//    else
+//        manipulateSelection(scene, viewport, controls);
+//
+//    if (scene->selection->changed) {
+//        scene->selection->changed = false;
+//        printNumberIntoString(scene->selection->primitive ?
+//        scene->selection->primitive->material_id : 0,
+//        &viewport->hud.lines[HUD_LINE_MatID].value);
+//    }
+//
+//    if (!controls->is_pressed.alt)
+//        updateViewport(viewport, mouse);
+//
+//    drawSceneToViewport(scene, viewport);
+//    drawSelection(scene, viewport, controls);
+//
+//    if (viewport->settings.show_hud)
+//        drawHUD(viewport->frame_buffer, &viewport->hud);
+//
+//    drawSceneMessage(scene, viewport);
+//
+//    if (controls->is_pressed.shift && mouse->wheel_scrolled)
+//        manipulateMaterial(controls, viewport, scene->selection->primitive,
+//                           scene->settings.materials - 1);
+//
+//    resetMouseChanges(mouse);
+//
+//    endFrameTimer(timer);
+//    printNumberIntoString(app->time.timers.update.average_frames_per_second, &viewport->hud.lines[HUD_LINE_FPS].value);
+//}
+
+void updateViewportRenderMode(Viewport *viewport, u8 key) {
+    ViewportSettings *settings = &viewport->settings;
+    if (key == '1') settings->render_mode = RenderMode_Beauty;
+    if (key == '2') settings->render_mode = RenderMode_Depth;
+    if (key == '3') settings->render_mode = RenderMode_Normals;
+    if (key == '4') settings->render_mode = RenderMode_UVs;
+    if (key >= '1' &&
+        key <= '4')
+        setRenderModeString(settings->render_mode,
+                            &viewport->hud.lines[HUD_LINE_Mode].value.string);
+}
+
+void saveOrLoadScene(Scene *scene, Viewport *viewport, Platform *platform, bool save) {
+    char *file = scene->settings.file.char_ptr;
+    scene->last_io_is_save = save;
+    if (scene->last_io_is_save)
+        saveSceneToFile(  scene, file, platform);
+    else {
+        loadSceneFromFile(scene, file, platform);
+        updateScene(scene, viewport);
+    }
+    scene->last_io_ticks = platform->getTicks();
+}
+
+//void onKeyChanged(u8 key, bool is_pressed) {
+//    Scene *scene = &app->scene;
+//    Platform *platform = &app->platform;
+//    NavigationMove *move = &app->viewport.navigation.move;
+//    if (key == 'R') move->up       = is_pressed;
+//    if (key == 'F') move->down     = is_pressed;
+//    if (key == 'W') move->forward  = is_pressed;
+//    if (key == 'A') move->left     = is_pressed;
+//    if (key == 'S') move->backward = is_pressed;
+//    if (key == 'D') move->right    = is_pressed;
+//
+//    if (!is_pressed) {
+//        Viewport *viewport = &app->viewport;
+//        ViewportSettings *settings = &viewport->settings;
+//        if (key == app->controls.key_map.tab)
+//            settings->show_hud = !settings->show_hud;
+//
+//        if (app->controls.is_pressed.ctrl && key == 'S' || key == 'Z')
+//            saveOrLoadScene(scene, viewport, platform, key == 'S');
+//
+//        if (key == 'T' && scene->selection->primitive) {
+//            if (scene->selection->primitive->flags & IS_TRANSPARENT)
+//                scene->selection->primitive->flags &= ~IS_TRANSPARENT;
+//            else
+//                scene->selection->primitive->flags |= IS_TRANSPARENT;
+//        }
+//        if (key == 'G') settings->use_GPU = USE_GPU_BY_DEFAULT ? !settings->use_GPU : false;
+//        if (key == '9') settings->show_BVH = !settings->show_BVH;
+//        if (key == '0') settings->show_SSB = !settings->show_SSB;
+//        updateViewportRenderMode(viewport, key);
+//    }
+//}
 
 
 void onResize(u16 width, u16 height) {
     setDimensionsInHUD(&app->viewport.hud, width, height);
-    updateSceneSSB(&app->scene, &app->viewport);
 }

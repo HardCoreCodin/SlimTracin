@@ -274,6 +274,14 @@ INLINE void decodeMaterialSpec(u8 flags, MaterialHas *has, MaterialUses *uses) {
     has->refraction = flags & (u8)REFRACTION;
 }
 
+typedef struct Shaded {
+    Primitive *primitive;
+    Material *material;
+    MaterialHas has;
+    MaterialUses uses;
+    vec3 position, normal, viewing_direction, viewing_origin, reflected_direction, light_direction, emissive_quad_vertices[4];
+} Shaded;
+
 // Lights:
 // ======
 typedef struct AmbientLight{
@@ -354,6 +362,8 @@ typedef struct Scene {
     Mesh *meshes;
     u32 *mesh_bvh_node_counts,
         *mesh_triangle_counts;
+    u64 last_io_ticks;
+    bool last_io_is_save;
 } Scene;
 
 typedef struct AppCallbacks {

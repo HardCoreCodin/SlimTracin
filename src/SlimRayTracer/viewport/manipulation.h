@@ -6,7 +6,9 @@
 #include "../math/quat.h"
 #include "../scene/primitive.h"
 #include "../scene/box.h"
+
 #include "../render/SSB.h"
+#include "../render/raytracer.h"
 #include "../render/shaders/common.h"
 #include "../render/shaders/intersection/box.h"
 #include "../render/shaders/intersection/primitives.h"
@@ -15,7 +17,7 @@ Primitive getSelectedPrimitive(Scene *scene) {
     Primitive primitive;
     Selection *selection = scene->selection;
     if (scene->selection->object_type == PrimitiveType_Light) {
-        primitive.type = (PrimitiveType)selection->object_type;
+        primitive.type = (enum PrimitiveType)selection->object_type;
         primitive.id   = selection->object_id;
         primitive.position = scene->lights[selection->object_id].position_or_direction;
         primitive.scale = getVec3Of(scene->lights[selection->object_id].intensity / 8);
@@ -226,6 +228,13 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                 selection->transformed = true;
             }
         }
+    }
+
+    if (selection->transformed) {
+        if (selection->object_type == PrimitiveType_Light)
+            uploadLights(scene);
+        else
+            updateScene(scene, viewport);
     }
 }
 

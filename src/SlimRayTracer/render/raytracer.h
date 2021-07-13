@@ -8,10 +8,8 @@
 #include "./shaders/trace.h"
 #include "./shaders/closest_hit/debug.h"
 #include "./shaders/closest_hit/surface.h"
-//#include "./shaders/closest_hit/classic.h"
-//#include "./shaders/closest_hit/reflection.h"
+#include "./shaders/closest_hit/lights.h"
 #include "./SSB.h"
-#include "./shaders/closest_hit/fog.h"
 
 void setRenderModeString(enum RenderMode mode, String *string) {
     switch (mode) {
@@ -98,12 +96,6 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
     if (hit_found) {
         switch (mode) {
             case RenderMode_Beauty: color = shadeSurface(ray, trace, scene); break;
-//                material_uses = scene->materials[trace->closest_hit.material_id].flags;
-//                if (material_uses & REFLECTION)   color = shadeReflection(ray, trace, scene);
-//                else if (material_uses & BLINN)   color = shadeBlinn(     ray, trace, scene);
-//                else if (material_uses & PHONG)   color = shadePhong(     ray, trace, scene);
-//                else if (material_uses & LAMBERT) color = shadeLambert(   ray, trace, scene);
-//                break;
             case RenderMode_Depth  : color = shadeDepth(trace->closest_hit.distance);          break;
             case RenderMode_Normals: color = shadeDirection(trace->closest_hit.normal);        break;
             case RenderMode_UVs    : color = shadeUV(trace->closest_hit.uv);                   break;

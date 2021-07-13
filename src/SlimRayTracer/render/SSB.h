@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../shapes/line.h"
+
 INLINE bool computeSSB(Rect *bounds, vec3 *pos, f32 r, f32 focal_length, Dimensions *dimensions) {
 /*
  h = y - t
