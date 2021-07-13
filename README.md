@@ -34,10 +34,10 @@ Additional features include raytracing facilities:<br>
     <img src="src/examples/2_shapes_update_and_render_c.png" alt="2_shapes_update_and_render_code" height="370">
   </p>
 * Meshes: Transformable and rendered using vertex normal interpolation<br>
-  <img src="src/examples/3_meshes_shapes.gif" alt="3_meshes" height="360"><br>
+  <img src="src/examples/3_meshes.gif" alt="3_meshes" height="360"><br>
   <p float="left">
-    <img src="src/examples/3_meshes_scene_setup_c.png" alt="3_meshes_scene_setup_code" height="400">
-    <img src="src/examples/3_meshes_update_and_render_c.png" alt="3_meshes_update_and_render_code" height="400">
+    <img src="src/examples/3_meshes_scene_setup_c.png" alt="3_meshes_scene_setup_code" height="500">
+    <img src="src/examples/3_meshes_update_and_render_c.png" alt="3_meshes_update_and_render_code" height="500">
   </p>
   
 * Materials with reflection/refraction or classical shaders.<br>
