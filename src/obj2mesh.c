@@ -10,10 +10,10 @@
 #include <string.h>
 #include <malloc.h>
 
-#include "./SlimRayTracer/core/types.h"
-#include "./SlimRayTracer/math/vec3.h"
-#include "./SlimRayTracer/math/mat3.h"
-#include "./SlimRayTracer/render/acceleration_structures/builder_top_down.h"
+#include "./SlimTracin/core/types.h"
+#include "./SlimTracin/math/vec3.h"
+#include "./SlimTracin/math/mat3.h"
+#include "./SlimTracin/render/acceleration_structures/builder_top_down.h"
 
 enum VertexAttributes {
     VertexAttributes_None,

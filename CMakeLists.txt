@@ -8,8 +8,8 @@ endif()
 set(CUDA_VERBOSE_BUILD ON)
 
 project(1_lights)
-add_executable(lights WIN32 src/examples/1_lights.c)
-set_target_properties(lights PROPERTIES C_STANDARD 90)
+add_executable(1_lights WIN32 src/examples/1_lights.c)
+set_target_properties(1_lights PROPERTIES C_STANDARD 90)
 
 project(2_shapes)
 add_executable(2_shapes WIN32 src/examples/2_shapes.c)

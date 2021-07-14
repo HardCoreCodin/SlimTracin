@@ -1,9 +1,9 @@
-#include "../SlimRayTracer/app.h"
-#include "../SlimRayTracer/core/time.h"
-#include "../SlimRayTracer/core/string.h"
-#include "../SlimRayTracer/viewport/hud.h"
-#include "../SlimRayTracer/viewport/navigation.h"
-#include "../SlimRayTracer/viewport/manipulation.h"
+#include "../SlimTracin/app.h"
+#include "../SlimTracin/core/time.h"
+#include "../SlimTracin/core/string.h"
+#include "../SlimTracin/viewport/hud.h"
+#include "../SlimTracin/viewport/navigation.h"
+#include "../SlimTracin/viewport/manipulation.h"
 
 void setupCamera(Camera *camera) {
     camera->transform.position.y = 7;
