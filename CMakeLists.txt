@@ -24,6 +24,10 @@ project(6_mesh)
 add_executable(6_meshes WIN32 src/examples/6_meshes.c)
 set_target_properties(6_meshes PROPERTIES C_STANDARD 90)
 
+project(7_modes)
+add_executable(7_modes WIN32 src/examples/7_modes.c)
+set_target_properties(7_modes PROPERTIES C_STANDARD 90)
+
 #project(SlimRayTracer_3_area_lights)
 #add_executable(SlimRayTracer_3_area_lights WIN32 src/examples/3_area_lights.c)
 #set_target_properties(SlimRayTracer_3_area_lights PROPERTIES C_STANDARD 90)

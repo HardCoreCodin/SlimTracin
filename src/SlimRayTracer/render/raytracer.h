@@ -2,7 +2,6 @@
 
 #include "../core/types.h"
 #include "../core/init.h"
-#include "../core/string.h"
 #include "../math/vec3.h"
 #include "../scene/box.h"
 #include "./shaders/common.h"
@@ -11,16 +10,6 @@
 #include "./shaders/closest_hit/surface.h"
 #include "./shaders/closest_hit/lights.h"
 #include "./SSB.h"
-
-void setRenderModeString(enum RenderMode mode, String *string) {
-    switch (mode) {
-        case RenderMode_Beauty : setString(string, (char*)"Beauty");  break;
-        case RenderMode_Normals: setString(string, (char*)"Normals"); break;
-        case RenderMode_Depth  : setString(string, (char*)"Depth");   break;
-        case RenderMode_UVs    : setString(string, (char*)"UVs");     break;
-        default: break;
-    }
-}
 
 void setBoxPrimitiveFromAABB(Primitive *box_primitive, AABB *aabb) {
     box_primitive->rotation = getIdentityQuaternion();
