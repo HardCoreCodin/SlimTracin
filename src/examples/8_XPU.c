@@ -136,7 +136,7 @@ void updateAndRender() {
         drawHUD(viewport->frame_buffer, &viewport->hud);
     }
 }
-#define USE_GPU_BY_DEFAULT true
+
 void onMouseButtonDown(MouseButton *mouse_button) {
     resetMouseRawMovement(&app->controls.mouse);
 }
