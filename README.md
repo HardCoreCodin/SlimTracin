@@ -62,7 +62,7 @@ Additional features include raytracing facilities:<br>
   <img src="src/examples/6_meshes.gif" alt="6_meshes" height="360"><br>
   <p float="left">
     <img src="src/examples/6_meshes_scene_setup_c.png" alt="6_meshes_scene_setup_code" height="450">
-    <img src="src/examples/6_meshes_update_and_render_c.png" alt="6_meshes_update_and_render_code" height="400">
+    <img src="src/examples/6_meshes_update_and_render_c.png" alt="6_meshes_update_and_render_code" height="450">
   </p>
 
   

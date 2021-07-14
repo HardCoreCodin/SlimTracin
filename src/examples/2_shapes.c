@@ -120,9 +120,9 @@ void onKeyChanged(u8 key, bool is_pressed) {
         if (key == 'T' && selected) {
             if (selected->flags & IS_TRANSPARENT) {
                 selected->flags &= ~IS_TRANSPARENT;
-                setString(s, (char*)("Off"));
+                setString(s, "Off");
             } else {
-                setString(s, (char*) ("On"));
+                setString(s, "On");
                 selected->flags |= IS_TRANSPARENT;
             }
         }
