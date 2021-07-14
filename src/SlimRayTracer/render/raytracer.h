@@ -2,6 +2,7 @@
 
 #include "../core/types.h"
 #include "../core/init.h"
+#include "../core/string.h"
 #include "../math/vec3.h"
 #include "../scene/box.h"
 #include "./shaders/common.h"

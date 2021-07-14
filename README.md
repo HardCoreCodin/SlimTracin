@@ -10,9 +10,9 @@ Optional GPU support using CUDA: The same code is cross-compiled (no CUDA librar
 
 Architecture:
 -
-The platform layer only flags operating-system headers (no standard library used).<br>
+The platform layer only uses operating-system headers (no standard library used).<br>
 The application layer itself (non-CUDA) has no dependencies, apart from the standard math header.<br>
-It is just a library that the platform layer flags - it has no knowledge of the platform.<br>
+It is just a library that the platform layer uses - it has no knowledge of the platform.<br>
 
 More details on this architecture [here](https://youtu.be/Ev_TeQmus68).
 
@@ -27,20 +27,39 @@ Additional features include raytracing facilities:<br>
     <img src="src/examples/1_lights_scene_setup_c.png" alt="1_lights_scene_setup_code" width="360">
     <img src="src/examples/1_lights_update_and_render_c.png" alt="1_lights_update_and_render_code" height="300">
   </p>
-* Parametric 3D shapes: Spheres, Boxes, Tetrahedra<br>
+* Shapes: Spheres, Boxes, Tetrahedra with UV-based transparency<br>
   <img src="src/examples/2_shapes.gif" alt="2_shapes" height="360"><br>
   <p float="left">
     <img src="src/examples/2_shapes_scene_setup_c.png" alt="2_shapes_scene_setup_code" width="360">
     <img src="src/examples/2_shapes_update_and_render_c.png" alt="2_shapes_update_and_render_code" height="370">
   </p>
-* Meshes: Transformable and rendered using vertex normal interpolation<br>
+  <p float="left">
+    <img src="src/examples/2_shapes_uv_transparency.gif" alt="2_shapes_uve_transparency" height="360">
+    <img src="src/examples/2_shapes_transparency_c.png" alt="2_shapes_transparency_code" height="360">
+  </p>
+* Materials: Lambert, Blinn, Phong with controllable shininess<br>
+  <img src="src/examples/3_materials_classic_shaders.gif" alt="3_materials_classic_shaders" height="360"><br>
+  <p float="left">
+    <img src="src/examples/3_materials_classic_shaders_setup_c.png" alt="3_materials_classic_setup_code" height="500">
+    <img src="src/examples/3_materials_classic_update_selection_c.png" alt="3_materials_classic_update_selection_code" height="500">
+  </p>
+* Materials: Reflective or Refractive with controllable trace-depth<br>
+  <p float="left">  
+    <img src="src/examples/4_materials_reflective.gif" alt="4_materials_reflective" height="360"><br>
+    <img src="src/examples/4_materials_refractive.gif" alt="4_materials_refractive" height="360"><br>
+  </p>
+  <p float="left">   
+    <img src="src/examples/4_materials_ref_setup_c.png" alt="4_materials_ref_setup_code" height="500">
+    <img src="src/examples/4_materials_ref_update_selection_c.png" alt="4_materials_ref_update_selection_code" height="500">
+  </p>
+* Meshes: Transformable and can have smooth shading using vertex normal interpolation<br>
   <img src="src/examples/3_meshes.gif" alt="3_meshes" height="360"><br>
   <p float="left">
-    <img src="src/examples/3_meshes_scene_setup_c.png" alt="3_meshes_scene_setup_code" height="500">
-    <img src="src/examples/3_meshes_update_and_render_c.png" alt="3_meshes_update_and_render_code" height="500">
+    <img src="src/examples/5_meshes_scene_setup_c.png" alt="3_meshes_scene_setup_code" height="500">
+    <img src="src/examples/5_meshes_update_and_render_c.png" alt="3_meshes_update_and_render_code" height="500">
   </p>
+
   
-* Materials with reflection/refraction or classical shaders.<br>
 * Spatial acceleration structures for scene and meshes.<br>
 * Screen-space acceleration structure for primary rays.<br>
 
