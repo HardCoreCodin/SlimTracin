@@ -71,10 +71,7 @@ Additional features include raytracing facilities:<br>
   The screen space bounds (SSB) also update when the camera changes.<br>
   <img src="src/examples/7_modes_as.gif" alt="7_modes_as" height="360"><br>
   <p float="left">
-    <img src="src/examples/7_modes_setup_c.png" alt="7_modes_setup_code" height="450">
-    <img src="src/examples/7_modes_update_c.png" alt="7_modes_update_code" height="450">
+    <img src="src/examples/7_modes_setup_c.png" alt="7_modes_setup_code" height="400">
+    <img src="src/examples/7_modes_update_c.png" alt="7_modes_update_code" height="400">
   </p>
-  
-* Spatial acceleration structures for scene and meshes.<br>
-* Screen-space acceleration structure for primary rays.<br>
 
