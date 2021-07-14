@@ -74,4 +74,8 @@ Additional features include raytracing facilities:<br>
     <img src="src/examples/7_modes_setup_c.png" alt="7_modes_setup_code" height="400">
     <img src="src/examples/7_modes_update_c.png" alt="7_modes_update_code" height="400">
   </p>
-
+* XPU Modes: CPU vs. GPU (CUDA)<br>
+  <img src="src/examples/8_XPU.gif" alt="8_XPU" height="360"><br>
+  <img src="src/examples/8_GPU.gif" alt="8_GPU" height="360"><br>
+  Compiling using CUDA allows for toggling between rendering on the CPU or the GPU.<br>
+  <img src="src/examples/8_XPU_c.png" alt="8_XPU_code" height="400">
