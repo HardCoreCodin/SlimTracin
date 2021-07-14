@@ -133,10 +133,8 @@ void setupViewport(Viewport *viewport) {
     HUD *hud = &viewport->hud;
     hud->line_height = 1.2f;
     hud->position.x = hud->position.y = 10;
-    char *title = (char*)"Transparent: ";
-    char *value = (char*)"Off";
-    setString(&hud->lines->title, title);
-    setString(&hud->lines->value.string, value);
+    setString(&hud->lines->title, "Transparent: ");
+    setString(&hud->lines->value.string, "Off");
 }
 void setupScene(Scene *scene) {
     setupLights(scene);

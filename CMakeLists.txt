@@ -16,9 +16,13 @@ project(4_materials_ref)
 add_executable(4_materials_ref WIN32 src/examples/4_materials_reflective_refractive.c)
 set_target_properties(4_materials_ref PROPERTIES C_STANDARD 90)
 
-project(5_mesh)
-add_executable(5_meshes WIN32 src/examples/5_meshes.c)
-set_target_properties(5_meshes PROPERTIES C_STANDARD 90)
+project(5_materials_emissive)
+add_executable(5_materials_emissive WIN32 src/examples/5_materials_emissive.c)
+set_target_properties(5_materials_emissive PROPERTIES C_STANDARD 90)
+
+project(6_mesh)
+add_executable(6_meshes WIN32 src/examples/6_meshes.c)
+set_target_properties(6_meshes PROPERTIES C_STANDARD 90)
 
 #project(SlimRayTracer_3_area_lights)
 #add_executable(SlimRayTracer_3_area_lights WIN32 src/examples/3_area_lights.c)
