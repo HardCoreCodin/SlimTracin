@@ -40,8 +40,8 @@ Additional features include raytracing facilities:<br>
 * Materials: Lambert, Blinn, Phong with controllable shininess<br>
   <img src="src/examples/3_materials_classic_shaders.gif" alt="3_materials_classic_shaders" height="360"><br>
   <p float="left">
-    <img src="src/examples/3_materials_classic_shaders_setup_c.png" alt="3_materials_classic_setup_code" height="500">
-    <img src="src/examples/3_materials_classic_update_selection_c.png" alt="3_materials_classic_update_selection_code" height="500">
+    <img src="src/examples/3_materials_classic_shaders_setup_c.png" alt="3_materials_classic_setup_code" height="400">
+    <img src="src/examples/3_materials_classic_update_selection_c.png" alt="3_materials_classic_update_selection_code" height="400">
   </p>
 * Materials: Reflective or Refractive with controllable trace-depth<br>
   <p float="left">  
@@ -49,14 +49,14 @@ Additional features include raytracing facilities:<br>
     <img src="src/examples/4_materials_refractive.gif" alt="4_materials_refractive" height="360"><br>
   </p>
   <p float="left">   
-    <img src="src/examples/4_materials_ref_setup_c.png" alt="4_materials_ref_setup_code" height="500">
-    <img src="src/examples/4_materials_ref_update_selection_c.png" alt="4_materials_ref_update_selection_code" height="500">
+    <img src="src/examples/4_materials_ref_setup_c.png" alt="4_materials_ref_setup_code" height="400">
+    <img src="src/examples/4_materials_ref_update_selection_c.png" alt="4_materials_ref_update_selection_code" height="400">
   </p>
 * Meshes: Transformable and can have smooth shading using vertex normal interpolation<br>
-  <img src="src/examples/3_meshes.gif" alt="3_meshes" height="360"><br>
+  <img src="src/examples/5_meshes.gif" alt="3_meshes" height="360"><br>
   <p float="left">
-    <img src="src/examples/5_meshes_scene_setup_c.png" alt="3_meshes_scene_setup_code" height="500">
-    <img src="src/examples/5_meshes_update_and_render_c.png" alt="3_meshes_update_and_render_code" height="500">
+    <img src="src/examples/5_meshes_scene_setup_c.png" alt="3_meshes_scene_setup_code" height="400">
+    <img src="src/examples/5_meshes_update_and_render_c.png" alt="3_meshes_update_and_render_code" height="400">
   </p>
 
   
