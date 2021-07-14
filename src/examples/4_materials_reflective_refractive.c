@@ -168,6 +168,7 @@ void setupShapes(Scene *scene) {
     tet->rotation = normQuat(mulQuat(box->rotation, rot_z));
     wal->rotation.axis.z = -HALF_SQRT2;
     wal->rotation.amount = +HALF_SQRT2;
+    wal->material_id = 1;
     rotation = tet->rotation;
 }
 void onMouseButtonDown(MouseButton *mouse_button) {

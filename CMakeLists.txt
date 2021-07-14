@@ -1,12 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
 
-set(CMAKE_CUDA_STANDARD 11)
-if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-    set(CMAKE_CUDA_ARCHITECTURES 52)
-endif()
-#set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CUDA_VERBOSE_BUILD ON)
-
 project(1_lights)
 add_executable(1_lights WIN32 src/examples/1_lights.c)
 set_target_properties(1_lights PROPERTIES C_STANDARD 90)
@@ -39,9 +32,17 @@ project(8_CPU)
 add_executable(8_CPU WIN32 src/examples/8_XPU.c)
 set_target_properties(8_CPU PROPERTIES C_STANDARD 90)
 
-project(8_XPU CUDA)
-add_executable(8_XPU WIN32 src/examples/8_XPU.cu)
-set_target_properties(8_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON C_STANDARD 90)
+# NOTE: Uncomment below if you have an NVIDIA GPU and have CUDA installed:
+
+#set(CMAKE_CUDA_STANDARD 11)
+#if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+#    set(CMAKE_CUDA_ARCHITECTURES 52)
+#endif()
+#set(CUDA_VERBOSE_BUILD ON)
+
+#project(8_XPU CUDA)
+#add_executable(8_XPU WIN32 src/examples/8_XPU.cu)
+#set_target_properties(8_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON C_STANDARD 90)
 
 project(obj2mesh)
 add_executable(obj2mesh src/obj2mesh.c)
