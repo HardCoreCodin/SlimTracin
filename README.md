@@ -79,3 +79,51 @@ Additional features include raytracing facilities:<br>
   <img src="src/examples/8_GPU.gif" alt="8_GPU" height="360"><br>
   Compiling using CUDA allows for toggling between rendering on the CPU or the GPU.<br>
   <img src="src/examples/8_XPU_c.png" alt="8_XPU_code" height="400">
+
+<b>SlimTracin</b> does not come with any GUI functionality at this point.<br>
+Some example apps have an optional HUD (heads up display) that shows additional information.<br>
+It can be toggled on or off using the`tab` key.<br>
+
+All examples are interactive using <b>SlimEngine</b>'s facilities having 2 interaction modes:
+1. FPS navigation (WASD + mouse look + zooming)<br>
+2. DCC application (default)<br>
+
+Double clicking the `left mouse button` anywhere within the window toggles between these 2 modes.<btr>
+
+Entering FPS mode captures the mouse movement for the window and hides the cursor.<br>
+Navigation is then as in a typical first-person game (plus lateral movement and zooming):<br>
+
+Move the `mouse` to freely look around (even if the cursor would leave the window border)<br>
+Scroll the `mouse wheel` to zoom in and out (changes the field of view of the perspective)<br>
+Hold `W` to move forward<br>
+Hold `S` to move backward<br>
+Hold `A` to move left<br>
+Hold `D` to move right<br>
+Hold `R` to move up<br>
+Hold `F` to move down<br>
+
+Exit this mode by double clicking the `left mouse button`.
+
+The default interaction mode is similar to a typical DCC application (i.e: Maya):<br>
+The mouse is not captured to the window and the cursor is visible.<br>
+Holding the `right mouse button` and dragging the mouse orbits the camera around a target.<br>
+Holding the `middle mouse button` and dragging the mouse pans the camera (left, right, up and down).<br>
+Scrolling the `mouse wheel` dollys the camera forward and backward.<br>
+
+Clicking the `left mouse button` selects an object in the scene that is under the cursor.<br>
+Holding the `left mouse button` while hovering an object and then dragging the mouse,<br>
+moves the object parallel to the screen.<br>
+
+Holding `alt` highlights the currently selecte object by drawing a bounding box around it.<br>
+While `alt` is still held, if the cursor hovers the selected object's bounding box,<br>
+mouse interaction transforms the object along the plane of the bounding box that the cursor hovers on:<br>
+Holding the `left mouse button` and dragging the mouse moves the object.<br>
+Holding the `right mouse button` and dragging the mouse rotates the object.<br>
+Holding the `middle mouse button` and dragging the mouse scales the object.<br>
+<i>(`mouse wheel` interaction is disabled while `alt` is held)</i><br>
+
+In some examples, further interaction is enabled while holding `ctrl` or `shift` <br>
+using the `mouse wheel` as a virtual "slider":<br>
+Holding `shift` and scrolling the `mouse wheel` cycles the assigned material for the selected object.<br>
+Holding `ctrl` and scrolling the `mouse wheel` increases or decreases the trace-depth*<br>
+<i>(how many times rays are allowed to bounce around between reflective or refractive objects)</i><br>
