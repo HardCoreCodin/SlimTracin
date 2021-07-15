@@ -188,6 +188,11 @@ void onKeyChanged(u8 key, bool is_pressed) {
         ViewportSettings *settings = &viewport->settings;
         if (key == app->controls.key_map.tab)
             settings->show_hud = !settings->show_hud;
+        else if (key == app->controls.key_map.ctrl ||
+                 key == app->controls.key_map.shift) {
+            app->controls.mouse.wheel_scroll_amount = 0;
+            app->controls.mouse.wheel_scrolled = false;
+        }
     }
 }
 void setupViewport(Viewport *viewport) {

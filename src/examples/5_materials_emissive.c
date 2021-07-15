@@ -78,7 +78,7 @@ void setupShapes(Scene *scene) {
     wall2->type = PrimitiveType_Quad;
     wall1->rotation.axis.z = -HALF_SQRT2;
     wall1->rotation.amount = +HALF_SQRT2;
-    wall2->rotation.axis.z = +HALF_SQRT2;
+    wall2->rotation.axis.z = -HALF_SQRT2;
     wall2->rotation.amount = -HALF_SQRT2;
     shpr1->position = Vec3( +3, 3, 0);
     shpr2->position = Vec3( -3, 3, 0);
@@ -87,6 +87,7 @@ void setupShapes(Scene *scene) {
     floor->scale    = Vec3(40, 1, 40);
     wall1->scale    = Vec3( 4, 1, 8 );
     wall2->scale    = Vec3( 4, 1, 8 );
+    wall2->material_id = 1;
 }
 void updateSelection(Scene *scene, Viewport *viewport,
                      Controls *controls) {
@@ -174,6 +175,10 @@ void onKeyChanged(u8 key, bool is_pressed) {
                 setString(s, (char*) ("On"));
                 selected->flags |= IS_TRANSPARENT;
             }
+        } else if (key == app->controls.key_map.ctrl ||
+                   key == app->controls.key_map.shift) {
+            app->controls.mouse.wheel_scroll_amount = 0;
+            app->controls.mouse.wheel_scrolled = false;
         }
     }
 }

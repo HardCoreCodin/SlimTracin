@@ -50,18 +50,32 @@ INLINE vec3 shadeFromLights(Shaded *shaded, Ray *ray, Trace *trace, Scene *scene
     return color;
 }
 
-INLINE vec3 shadeFromEmissiveQuads(Shaded *shaded, Ray *ray, Trace *trace, Scene *scene, vec3 color) {
-    RayHit *hit = &trace->closest_hit;
+INLINE bool shadeFromEmissiveQuads(Shaded *shaded, Ray *ray, Trace *trace, Scene *scene, vec3 *color) {
+    RayHit *hit = &trace->current_hit;
     Primitive *quad = scene->primitives;
     Material *emissive_material;
     vec3 emissive_quad_normal;
     vec3 *Rd = &trace->local_space_ray.direction;
     vec3 *Ro = &trace->local_space_ray.origin;
+    bool found = false;
 
     for (u32 i = 0; i < scene->settings.primitives; i++, quad++) {
         emissive_material = scene->materials + quad->material_id;
         if (quad->type != PrimitiveType_Quad || !(emissive_material->flags & EMISSION))
             continue;
+
+        convertPositionAndDirectionToObjectSpace(shaded->viewing_origin, shaded->viewing_direction, quad, Ro, Rd);
+        if (hitQuad(hit, Ro, Rd, quad->flags)) {
+            hit->position = convertPositionToWorldSpace(hit->position, quad);
+            hit->distance_squared = squaredLengthVec3(subVec3(hit->position, shaded->viewing_origin));
+            if (hit->distance_squared < trace->closest_hit.distance_squared) {
+                hit->object_id = i;
+                hit->object_type = PrimitiveType_Quad;
+                hit->material_id = quad->material_id;
+                trace->closest_hit = *hit;
+                found = true;
+            }
+        }
 
         emissive_quad_normal.x = emissive_quad_normal.z = 0;
         emissive_quad_normal.y = 1;
@@ -114,21 +128,38 @@ INLINE vec3 shadeFromEmissiveQuads(Shaded *shaded, Ray *ray, Trace *trace, Scene
                 if (d < shaded_light)
                     shaded_light = d;
             }
-            emission_intensity *= shaded_light;
-
-            color = mulAddVec3(shadePointOnSurface(shaded, dotVec3(shaded->normal, shaded->light_direction)),
-                               scaleVec3(emissive_material->emission, emission_intensity),
-                               color);
+            if (shaded_light > 0)
+                *color = mulAddVec3(shadePointOnSurface(shaded, dotVec3(shaded->normal, shaded->light_direction)),
+                                   scaleVec3(emissive_material->emission, emission_intensity * shaded_light),
+                                   *color);
         }
     }
 
-    return color;
+    if (found) {
+//        quad = scene->primitives + trace->closest_hit.object_id;
+//        trace->closest_hit.normal = normVec3(convertDirectionToWorldSpace(trace->closest_hit.normal, quad));
+        trace->closest_hit.distance = sqrtf(trace->closest_hit.distance_squared);
+    }
+
+    return found;
 }
 
 INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
     RayHit *hit = &trace->closest_hit;
-    if (scene->materials[trace->closest_hit.material_id].flags & EMISSION)
-        return hit->from_behind ? getVec3Of(0) : scene->materials[trace->closest_hit.material_id].emission;
+    vec3 color = getVec3Of(0);
+    if (scene->materials[trace->closest_hit.material_id].flags & EMISSION) {
+        if (!hit->from_behind)
+            color = scene->materials[trace->closest_hit.material_id].emission;
+        if (scene->lights)
+            shadeLights(scene->lights,
+                        scene->settings.lights,
+                        ray->origin,
+                        ray->direction,
+                        trace->closest_hit.distance,
+                        &trace->sphere_hit,
+                        &color);
+        return color;
+    }
 
     Shaded shaded;
     shaded.viewing_origin    = ray->origin;
@@ -147,7 +178,7 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
             break;
         }
 
-    vec3 current_color, color = getVec3Of(0), throughput = getVec3Of(1);
+    vec3 current_color, throughput = getVec3Of(1);
     u32 depth = trace->depth;
     while (depth) {
         shaded.position = ray->origin = hit->position;
@@ -164,8 +195,10 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
         if (scene->lights)
             current_color = shadeFromLights(&shaded, ray, trace, scene, current_color);
 
-        if (scene_has_emissive_quads)
-            current_color = shadeFromEmissiveQuads(&shaded, ray, trace, scene, current_color);
+        if (scene_has_emissive_quads) {
+            if (shadeFromEmissiveQuads(&shaded, ray, trace, scene, &current_color))
+                max_distance = hit->distance;
+        }
 
         color = mulAddVec3(current_color, throughput, color);
 
