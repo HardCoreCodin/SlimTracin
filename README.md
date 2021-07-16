@@ -1,4 +1,4 @@
-# SlimTracin
+<img src="SlimTracin_logo.png" alt="SlimTracin_logo"><br>
 
 A minimalist and platform-agnostic interactive/real-time raytracer.<br>
 Strong emphasis on simplicity, ease of use and almost no setup to get started with.<br>  
