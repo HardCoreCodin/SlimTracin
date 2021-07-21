@@ -21,13 +21,13 @@ Features:
 All features of SlimEngine are available here as well.<br>
 Additional features include raytracing facilities:<br>
 
-* Point lights: Can be moved around and scaled (changing their light intensity)<br>
+* <b><u>Point lights</b>:</u> Can be moved around and scaled (changing their light intensity)<br>
   <img src="src/examples/1_lights.gif" alt="1_lights" height="360"><br>
   <p float="left">
     <img src="src/examples/1_lights_scene_setup_c.png" alt="1_lights_scene_setup_code" width="360">
     <img src="src/examples/1_lights_update_and_render_c.png" alt="1_lights_update_and_render_code" height="300">
   </p>
-* Shapes: Spheres, Boxes, Tetrahedra with UV-based transparency<br>
+* <b><u>Shapes</b>:</u> Spheres, Boxes, Tetrahedra with UV-based transparency<br>
   <img src="src/examples/2_shapes.gif" alt="2_shapes" height="360"><br>
   <p float="left">
     <img src="src/examples/2_shapes_scene_setup_c.png" alt="2_shapes_scene_setup_code" width="360">
@@ -37,13 +37,13 @@ Additional features include raytracing facilities:<br>
     <img src="src/examples/2_shapes_uv_transparency.gif" alt="2_shapes_uve_transparency" height="360">
     <img src="src/examples/2_shapes_transparency_c.png" alt="2_shapes_transparency_code" height="360">
   </p>
-* Materials: Lambert, Blinn, Phong with controllable shininess<br>
+* <b><u>Materials</b>:</u> Lambert, Blinn, Phong with controllable shininess<br>
   <img src="src/examples/3_materials_classic_shaders.gif" alt="3_materials_classic_shaders" height="360"><br>
   <p float="left">
     <img src="src/examples/3_materials_classic_shaders_setup_c.png" alt="3_materials_classic_setup_code" height="450">
     <img src="src/examples/3_materials_classic_update_selection_c.png" alt="3_materials_classic_update_selection_code" height="450">
   </p>
-* Materials: Reflective or Refractive with controllable trace-depth<br>
+* <b><u>Materials</b>:</u> Reflective or Refractive with controllable trace-depth<br>
   <p float="left">  
     <img src="src/examples/4_materials_reflective.gif" alt="4_materials_reflective" height="360"><br>
     <img src="src/examples/4_materials_refractive.gif" alt="4_materials_refractive" height="360"><br>
@@ -52,19 +52,19 @@ Additional features include raytracing facilities:<br>
     <img src="src/examples/4_materials_ref_setup_c.png" alt="4_materials_ref_setup_code" height="450">
     <img src="src/examples/4_materials_ref_update_selection_c.png" alt="4_materials_ref_update_selection_code" height="450">
   </p>
-* Materials: Emissive quads can be used as rectangular area lights<br>
+* <b><u>Materials</b>:</u> Emissive quads can be used as rectangular area lights<br>
   <img src="src/examples/5_materials_emissive.gif" alt="5_materials_emissive" height="360"><br>
   <p float="left">   
     <img src="src/examples/5_materials_emissive_setup_c.png" alt="4_materials_ref_setup_code" height="450">
     <img src="src/examples/5_materials_emissive_update_selection_c.png" alt="4_materials_ref_update_selection_code" height="450">
   </p>  
-* Meshes: Transformable and can have smooth shading using vertex normal interpolation<br>
+* <b><u>Meshes</b>:</u> Transformable and can have smooth shading using vertex normal interpolation<br>
   <img src="src/examples/6_meshes.gif" alt="6_meshes" height="360"><br>
   <p float="left">
     <img src="src/examples/6_meshes_scene_setup_c.png" alt="6_meshes_scene_setup_code" height="450">
     <img src="src/examples/6_meshes_update_and_render_c.png" alt="6_meshes_update_and_render_code" height="450">
   </p>
-* Render Modes: Beauty, Depth, Normals, UVs and acceleration structures<br>
+* <b><u>Render Modes</b>:</u> Beauty, Depth, Normals, UVs and acceleration structures<br>
   <img src="src/examples/7_modes.gif" alt="7_modes" height="360"><br>
   Acceleration structures can be overlayed showing how they update dynamically.<br>
   The scene's BVH is re-built any time a primitive is moved or transformed.<br>
@@ -74,11 +74,22 @@ Additional features include raytracing facilities:<br>
     <img src="src/examples/7_modes_setup_c.png" alt="7_modes_setup_code" height="400">
     <img src="src/examples/7_modes_update_c.png" alt="7_modes_update_code" height="400">
   </p>
-* XPU Modes: CPU vs. GPU (CUDA)<br>
+* <b><u>XPU Modes</b>:</u> CPU vs. GPU (CUDA)<br>
   <img src="src/examples/8_XPU.gif" alt="8_XPU" height="360"><br>
   <img src="src/examples/8_GPU.gif" alt="8_GPU" height="360"><br>
   Compiling using CUDA allows for toggling between rendering on the CPU or the GPU.<br>
   <img src="src/examples/8_XPU_c.png" alt="8_XPU_code" height="400">
+* <b><u>obj2mesh</b>:</u> Also privided is a separate CLI tool for converting `.obj` files to `.mesh` files.<br>
+  It is also written in plain C so can be compiled in either C or C++.<br>
+  Usage is simple: `./obj2mesh my_obj_file.obj my_mesh_file.mesh`<br>
+  <u><i>Note</i>:</u> A tool by the same name and with the same usage exists in <b>SlimEngine</b>.<br>
+  They are not at all the same and produce different and incompatible `.mesh` files.<br>
+  <b>SlimTracin</b> meshes contain additional data not present in <b>SlimEngine</b> meshes.<br>
+  The additional data relates to accelerating the process of tracing rays against the meshes.<br>
+  It includes a BVH and per-triangle data used for optimized ray/triangle intersection checks.<br>
+  It gets computed as part of the conversion process and stored in the resulting `.mesh` files.<br>
+  That is why it takes longer to convert for <b>SlimTracin</b> and why the resulting files are larger.<br>
+  
 
 <b>SlimTracin</b> does not come with any GUI functionality at this point.<br>
 Some example apps have an optional HUD (heads up display) that shows additional information.<br>
