@@ -3,6 +3,7 @@
 #include "./types.h"
 #include "../core/types.h"
 #include "../math/vec3.h"
+#include "../math/mat4.h"
 #include "../math/quat.h"
 #include "../scene/primitive.h"
 
@@ -183,14 +184,27 @@ void initTime(Time *time, GetTicks getTicks, u64 ticks_per_second) {
     time->timers.update.ticks_before = time->timers.update.ticks_of_last_report = getTicks();
 }
 
-void initPixelGrid(PixelGrid *pixel_grid, Pixel* pixels_memory) {
-    pixel_grid->pixels = pixels_memory;
-    updateDimensions(&pixel_grid->dimensions, MAX_WIDTH, MAX_HEIGHT);
+void initPixelGrid(PixelGrid *pixel_grid, void* memory, u32 max_width, u32 max_height) {
+    pixel_grid->pixels = (Pixel*)(memory);
+    pixel_grid->float_pixels = (FloatPixel*)(pixel_grid->pixels + max_width * max_height);
+    pixel_grid->gamma_corrected_blending = true;
+    updateDimensions(&pixel_grid->dimensions, max_width, max_height);
 }
 
-void fillPixelGrid(PixelGrid *pixel_grid, RGBA color) {
-    for (u32 i = 0; i < pixel_grid->dimensions.width_times_height; i++)
-        pixel_grid->pixels[i].color = color;
+void fillPixelGrid(PixelGrid *pixel_grid, vec3 color, f32 opacity) {
+    Pixel pixel;
+    pixel.color.R = (u8)color.r;
+    pixel.color.G = (u8)color.g;
+    pixel.color.B = (u8)color.b;
+    pixel.color.A = (u8)((f32)MAX_COLOR_VALUE * opacity);
+    FloatPixel float_pixel;
+    float_pixel.color = color;
+    float_pixel.opacity = opacity;
+    float_pixel.depth = INFINITY;
+    for (u32 i = 0; i < pixel_grid->dimensions.width_times_height; i++) {
+        pixel_grid->pixels[i]             = pixel;
+        pixel_grid->float_pixels[i] = float_pixel;
+    }
 }
 
 void setBoxEdgesFromVertices(BoxEdges *edges, BoxVertices *vertices) {
@@ -348,8 +362,36 @@ void setDefaultViewportSettings(ViewportSettings *settings) {
     settings->show_hud = false;
     settings->show_BVH = false;
     settings->show_SSB = false;
+    settings->show_selection = true;
     settings->use_GPU  = USE_GPU_BY_DEFAULT;
     settings->render_mode = RenderMode_Beauty;
+    settings->antialias = true;
+    settings->depth_sort = true;
+    settings->use_cube_NDC = false;
+    settings->flip_z = false;
+    settings->background_color = Color(Black);
+    settings->background_opacity = 1.0f;
+    settings->background_fill = true;
+    settings->position.x = 0;
+    settings->position.y = 0;
+}
+
+void setPreProjectionMatrix(Viewport *viewport) {
+    f32 n = viewport->settings.near_clipping_plane_distance;
+    f32 f = viewport->settings.far_clipping_plane_distance;
+
+    viewport->pre_projection_matrix.X.y = viewport->pre_projection_matrix.X.z = viewport->pre_projection_matrix.X.w = 0;
+    viewport->pre_projection_matrix.Y.x = viewport->pre_projection_matrix.Y.z = viewport->pre_projection_matrix.Y.w = 0;
+    viewport->pre_projection_matrix.W.x = viewport->pre_projection_matrix.W.y = viewport->pre_projection_matrix.W.w = 0;
+    viewport->pre_projection_matrix.Z.x = viewport->pre_projection_matrix.Z.y = 0;
+    viewport->pre_projection_matrix.X.x = viewport->camera->focal_length;
+    viewport->pre_projection_matrix.Y.y = viewport->camera->focal_length * viewport->frame_buffer->dimensions.width_over_height;
+    viewport->pre_projection_matrix.Z.z = viewport->pre_projection_matrix.W.z = 1.0f / (f - n);
+    viewport->pre_projection_matrix.Z.z *= viewport->settings.use_cube_NDC ? (f + n) : f;
+    viewport->pre_projection_matrix.W.z *= viewport->settings.use_cube_NDC ? (-2 * f * n) : (-n * f);
+    viewport->pre_projection_matrix.Z.w = 1.0f;
+
+    viewport->pre_projection_matrix_inverted = invMat4(viewport->pre_projection_matrix);
 }
 
 void initViewport(Viewport *viewport,
@@ -363,6 +405,7 @@ void initViewport(Viewport *viewport,
     initBox(&viewport->default_box);
     initHUD(&viewport->hud, viewport_settings->hud_lines, viewport_settings->hud_line_count, 1, viewport_settings->hud_default_color, 0, 0);
     initNavigation(&viewport->navigation, navigation_settings);
+    setPreProjectionMatrix(viewport);
 }
 
 void setDefaultSceneSettings(SceneSettings *settings) {

@@ -3,6 +3,7 @@
 #include "../SlimTracin/viewport/hud.h"
 #include "../SlimTracin/viewport/navigation.h"
 #include "../SlimTracin/viewport/manipulation.h"
+#include "../SlimTracin/render/raytracer.h"
 
 void setupCamera(Camera *camera) {
     camera->transform.position.y = 7;
@@ -88,11 +89,7 @@ void updateAndRender() {
     for (u8 i = 0; i < 3; i++, prim++)
         prim->rotation = normQuat(mulQuat(prim->rotation, rot));
 
-    fillPixelGrid(viewport->frame_buffer, Color(Black));
-    renderScene(scene, viewport);
-    drawSelection(scene, viewport, controls);
-    if (viewport->settings.show_hud)
-        drawHUD(viewport->frame_buffer, &viewport->hud);
+    renderScene(scene, viewport, controls);
 
     resetMouseChanges(mouse);
     endFrameTimer(timer);

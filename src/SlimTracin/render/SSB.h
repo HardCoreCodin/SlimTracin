@@ -181,21 +181,21 @@ void drawSSB(Scene *scene, Viewport *viewport) {
     for (u32 i = 0; i < scene->settings.primitives; i++, primitive++) {
         if (primitive->flags & IS_VISIBLE) {
             switch (primitive->type) {
-                case PrimitiveType_Box        : color = Color(Cyan);    break;
-                case PrimitiveType_Quad       : color = Color(White);   break;
-                case PrimitiveType_Sphere     : color = Color(Yellow);  break;
-                case PrimitiveType_Tetrahedron: color = Color(Magenta); break;
-                case PrimitiveType_Mesh       : color = Color(Red);     break;
+                case PrimitiveType_Box        : color = ColorOf(Cyan);    break;
+                case PrimitiveType_Quad       : color = ColorOf(White);   break;
+                case PrimitiveType_Sphere     : color = ColorOf(Yellow);  break;
+                case PrimitiveType_Tetrahedron: color = ColorOf(Magenta); break;
+                case PrimitiveType_Mesh       : color = ColorOf(Red);     break;
                 default:
                     continue;
             }
             min = primitive->screen_bounds.min;
             max = primitive->screen_bounds.max;
 
-            drawHLine2D(viewport->frame_buffer, color, min.x, max.x, min.y);
-            drawHLine2D(viewport->frame_buffer, color, min.x, max.x, max.y);
-            drawVLine2D(viewport->frame_buffer, color, min.y, max.y, min.x);
-            drawVLine2D(viewport->frame_buffer, color, min.y, max.y, max.x);
+            drawHLine(viewport->frame_buffer, color, min.x, max.x, min.y);
+            drawHLine(viewport->frame_buffer, color, min.x, max.x, max.y);
+            drawVLine(viewport->frame_buffer, color, min.y, max.y, min.x);
+            drawVLine(viewport->frame_buffer, color, min.y, max.y, max.x);
         }
     }
 }

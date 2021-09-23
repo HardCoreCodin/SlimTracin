@@ -4,6 +4,8 @@
 #include "../core/init.h"
 #include "../math/vec3.h"
 #include "../scene/box.h"
+#include "../viewport/hud.h"
+#include "../viewport/manipulation.h"
 #include "./shaders/common.h"
 #include "./shaders/trace.h"
 #include "./shaders/closest_hit/debug.h"
@@ -28,12 +30,12 @@ void setBoxPrimitiveFromPrimitiveAndAABB(Primitive *box_primitive, Primitive *pr
 
 void drawMeshAccelerationStructure(Viewport *viewport, Mesh *mesh, Primitive *primitive, Primitive *box_primitive) {
     BVHNode *node = mesh->bvh.nodes;
-    RGBA color;
+    vec3 color;
     u32 node_count = mesh->bvh.node_count;
     for (u32 node_id = 0; node_id < node_count; node_id++, node++) {
         color = Color(node->primitive_count ? Magenta : (node_id ? Green : Blue));
         setBoxPrimitiveFromPrimitiveAndAABB(box_primitive, primitive, &node->aabb);
-        drawBox(viewport, color, &viewport->default_box, box_primitive, BOX__ALL_SIDES);
+        drawBox(viewport, color, 1, &viewport->default_box, box_primitive, BOX__ALL_SIDES, 1);
     }
 }
 
@@ -61,49 +63,62 @@ void drawBVH(Scene *scene, Viewport *viewport) {
                     default:
                         continue;
                 }
-                drawBox(viewport, Color(color), &viewport->default_box, primitive, BOX__ALL_SIDES);
+                drawBox(viewport, Color(color), 1, &viewport->default_box, primitive, BOX__ALL_SIDES, 1);
             }
             color = White;
         } else
             color = node_id ? Grey : Blue;
 
         setBoxPrimitiveFromAABB(&box_primitive, &node->aabb);
-        drawBox(viewport, Color(color), &viewport->default_box, &box_primitive, BOX__ALL_SIDES);
+        drawBox(viewport, Color(color), 1, &viewport->default_box, &box_primitive, BOX__ALL_SIDES, 1);
     }
 }
 
-void updateScene(Scene *scene, Viewport *viewport) {
-    updateSceneBVH(scene, &app->bvh_builder);
-    updateSceneSSB(scene, viewport);
-}
-
-INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode, u16 x, u16 y, Pixel *pixel) {
+INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, Viewport *viewport, enum RenderMode mode, u16 x, u16 y) {
     vec3 Ro = ray->origin;
     vec3 Rd = ray->direction;
     vec3 color = getVec3Of(0);
 
+    bool lights_shaded = false;
     bool hit_found = hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y);
+    f32 closest_distance = hit_found ? trace->closest_hit.distance : INFINITY;
+    f32 z = INFINITY;
     if (hit_found) {
+        // Project hit position to get the projected Z:
+        vec3 hit_position = trace->closest_hit.position;
+        hit_position = subVec3(hit_position, viewport->camera->transform.position);
+        hit_position = mulVec3Mat3(hit_position, viewport->camera->transform.rotation_matrix_inverted);
+        z = hit_position.z;
+
         switch (mode) {
-            case RenderMode_Beauty: color = shadeSurface(ray, trace, scene); break;
-            case RenderMode_Depth  : color = shadeDepth(trace->closest_hit.distance);          break;
-            case RenderMode_Normals: color = shadeDirection(trace->closest_hit.normal);        break;
-            case RenderMode_UVs    : color = shadeUV(trace->closest_hit.uv);                   break;
+            case RenderMode_Beauty: color = shadeSurface(ray, trace, scene, &lights_shaded); break;
+            case RenderMode_Depth  : color = shadeDepth(trace->closest_hit.distance); break;
+            case RenderMode_Normals: color = shadeDirection(trace->closest_hit.normal); break;
+            case RenderMode_UVs    : color = shadeUV(trace->closest_hit.uv);            break;
         }
     }
 
-    if (mode == RenderMode_Beauty) {
-        if (!hit_found && scene->lights)
-            shadeLights(scene->lights, scene->settings.lights, Ro, Rd, INFINITY, &trace->sphere_hit, &color);
+    if (mode == RenderMode_Beauty && scene->lights && !lights_shaded)
+        hit_found |= shadeLights(scene->lights, scene->settings.lights, Ro, Rd, closest_distance, &trace->sphere_hit, &color);
 
-        setPixelBakedToneMappedColor(pixel, &color);
-    } else
-        setPixelColor(pixel, &color);
+    if (hit_found) {
+        if (mode == RenderMode_Beauty) {
+            color.x = toneMappedBaked(color.x);
+            color.y = toneMappedBaked(color.y);
+            color.z = toneMappedBaked(color.z);
+        }
+        color.x *= FLOAT_TO_COLOR_COMPONENT;
+        color.y *= FLOAT_TO_COLOR_COMPONENT;
+        color.z *= FLOAT_TO_COLOR_COMPONENT;
+
+        PixelGrid *fb = viewport->frame_buffer;
+        FloatPixel *pixel = fb->float_pixels + (fb->dimensions.width * y + x);
+        setPixel(pixel, color, 1, z, fb->gamma_corrected_blending);
+    }
 }
 
 void renderSceneOnCPU(Scene *scene, Viewport *viewport) {
     PixelGrid *frame_buffer = viewport->frame_buffer;
-    Pixel* pixel = frame_buffer->pixels;
     Dimensions *dim = &frame_buffer->dimensions;
 
     vec3 ray_origin = viewport->camera->transform.position;
@@ -121,13 +136,13 @@ void renderSceneOnCPU(Scene *scene, Viewport *viewport) {
     Trace *trace = &viewport->trace;
 
     for (u16 y = 0; y < h; y++) {
-        for (u16 x = 0; x < w; x++, pixel++) {
+        for (u16 x = 0; x < w; x++) {
             ray.origin = ray_origin;
             ray.direction = normVec3(current);
             ray.direction_reciprocal = oneOverVec3(ray.direction);
             trace->closest_hit.distance = trace->closest_hit.distance_squared = INFINITY;
 
-            rayTrace(&ray, trace, scene, mode, x, y, pixel);
+            rayTrace(&ray, trace, scene, viewport, mode, x, y);
 
             current = addVec3(current, right);
         }
@@ -234,15 +249,29 @@ void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
     checkErrors()
     downloadN(d_pixels, (u32*)viewport->frame_buffer->pixels, dim->width_times_height)
 }
+#endif
 
-void renderScene(Scene *scene, Viewport *viewport) {
+void renderScene(Scene *scene, Viewport *viewport, Controls *controls) {
+    if (viewport->settings.background_fill)
+        fillPixelGrid(viewport->frame_buffer,
+                      viewport->settings.background_color,
+                      viewport->settings.background_opacity);
+
     setViewportProjectionPlane(viewport);
+    setPreProjectionMatrix(viewport);
+
+#ifdef __CUDACC__
     if (viewport->settings.use_GPU) renderSceneOnGPU(scene, viewport);
     else                            renderSceneOnCPU(scene, viewport);
-}
 #else
-void renderScene(Scene *scene, Viewport *viewport) {
-    setViewportProjectionPlane(viewport);
     renderSceneOnCPU(scene, viewport);
-}
 #endif
+
+    if (viewport->settings.show_BVH      ) drawBVH(      scene, viewport);
+    if (viewport->settings.show_SSB      ) drawSSB(      scene, viewport);
+    if (viewport->settings.show_selection) drawSelection(scene, viewport, controls);
+
+    preparePixelGridForDisplay(viewport->frame_buffer);
+
+    if (viewport->settings.show_hud) drawHUD(viewport->frame_buffer, &viewport->hud);
+}

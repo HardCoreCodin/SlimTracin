@@ -35,51 +35,44 @@
 // F = 0.06
 // E = 0
 
-//#define TONE_MAP__SHOULDER_STRENGTH 6.2f
-//#define TONE_MAP__TOE_STRENGTH 1
-//#define TONE_MAP__TOE_NUMERATOR 0
-//#define TONE_MAP__TOE_DENOMINATOR 1
-//#define TONE_MAP__TOE_ANGLE (TONE_MAP__TOE_NUMERATOR / TONE_MAP__TOE_DENOMINATOR)
-//#define TONE_MAP__LINEAR_ANGLE (1.0f/3.4f)
-//#define TONE_MAP__LINEAR_WHITE 1
-//#define TONE_MAP__LINEAR_STRENGTH 1
+#define TONE_MAP__SHOULDER_STRENGTH 6.2f
+#define TONE_MAP__TOE_STRENGTH 1
+#define TONE_MAP__TOE_NUMERATOR 0
+#define TONE_MAP__TOE_DENOMINATOR 1
+#define TONE_MAP__TOE_ANGLE (TONE_MAP__TOE_NUMERATOR / TONE_MAP__TOE_DENOMINATOR)
+#define TONE_MAP__LINEAR_ANGLE (1.0f/3.4f)
+#define TONE_MAP__LINEAR_WHITE 1
+#define TONE_MAP__LINEAR_STRENGTH 1
 // LinearWhite = 1:
 // f(LinearWhite) = f(1)
 // f(LinearWhite) = (A + C*B + D*E)/(A + B + D*F) - E/F
-//#define TONE_MAPPED__LINEAR_WHITE ( \
-//    (                               \
-//        TONE_MAP__SHOULDER_STRENGTH + \
-//        TONE_MAP__LINEAR_ANGLE * TONE_MAP__LINEAR_STRENGTH + \
-//        TONE_MAP__TOE_STRENGTH * TONE_MAP__TOE_NUMERATOR \
-//    ) / (                           \
-//        TONE_MAP__SHOULDER_STRENGTH + TONE_MAP__LINEAR_STRENGTH + \
-//        TONE_MAP__TOE_STRENGTH * TONE_MAP__TOE_DENOMINATOR  \
-//    ) - TONE_MAP__TOE_ANGLE \
-//)
+#define TONE_MAPPED__LINEAR_WHITE ( \
+    (                               \
+        TONE_MAP__SHOULDER_STRENGTH + \
+        TONE_MAP__LINEAR_ANGLE * TONE_MAP__LINEAR_STRENGTH + \
+        TONE_MAP__TOE_STRENGTH * TONE_MAP__TOE_NUMERATOR \
+    ) / (                           \
+        TONE_MAP__SHOULDER_STRENGTH + TONE_MAP__LINEAR_STRENGTH + \
+        TONE_MAP__TOE_STRENGTH * TONE_MAP__TOE_DENOMINATOR  \
+    ) - TONE_MAP__TOE_ANGLE \
+)
 
-//#ifdef __CUDACC__
-//__device__
-//__host__
-//__forceinline__
-//#else
-//inline
-//#endif
-//f32 toneMapped(f32 LinearColor) {
-//    f32 x = LinearColor - 0.004f;
-//    if (x < 0.0f) x = 0.0f;
-//    f32 x2 = x*x;
-//    f32 x2_times_sholder_strength = x2 * TONE_MAP__SHOULDER_STRENGTH;
-//    f32 x_times_linear_strength   =  x * TONE_MAP__LINEAR_STRENGTH;
-//    return (
-//                   (
-//                           (
-//                                   x2_times_sholder_strength + x*x_times_linear_strength + TONE_MAP__TOE_STRENGTH*TONE_MAP__TOE_NUMERATOR
-//                           ) / (
-//                                   x2_times_sholder_strength +   x_times_linear_strength + TONE_MAP__TOE_STRENGTH*TONE_MAP__TOE_DENOMINATOR
-//                           )
-//                   ) - TONE_MAP__TOE_ANGLE
-//           ) / (TONE_MAPPED__LINEAR_WHITE);
-//}
+INLINE f32 toneMapped(f32 LinearColor) {
+    f32 x = LinearColor - 0.004f;
+    if (x < 0.0f) x = 0.0f;
+    f32 x2 = x*x;
+    f32 x2_times_sholder_strength = x2 * TONE_MAP__SHOULDER_STRENGTH;
+    f32 x_times_linear_strength   =  x * TONE_MAP__LINEAR_STRENGTH;
+    return (
+                   (
+                           (
+                                   x2_times_sholder_strength + x*x_times_linear_strength + TONE_MAP__TOE_STRENGTH*TONE_MAP__TOE_NUMERATOR
+                           ) / (
+                                   x2_times_sholder_strength +   x_times_linear_strength + TONE_MAP__TOE_STRENGTH*TONE_MAP__TOE_DENOMINATOR
+                           )
+                   ) - TONE_MAP__TOE_ANGLE
+           ) / (TONE_MAPPED__LINEAR_WHITE);
+}
 
 INLINE f32 toneMappedBaked(f32 LinearColor) {
     // x = max(0, LinearColor-0.004)
@@ -96,46 +89,9 @@ INLINE f32 gammaCorrected(f32 x) {
     return (x <= 0.0031308f ? (x * 12.92f) : (1.055f * powf(x, 1.0f/2.4f) - 0.055f));
 }
 
-//INLINE f32 gammaCorrectedApproximately(f32 x) {
-//    return powf(x, 1.0f/2.2f);
-//}
-
-INLINE void setPixelColor(Pixel *pixel, vec3 *color) {
-    color->x *= 255;
-    color->y *= 255;
-    color->z *= 255;
-    pixel->color.R = color->x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color->x;
-    pixel->color.G = color->y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color->y;
-    pixel->color.B = color->z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color->z;
+INLINE f32 gammaCorrectedApproximately(f32 x) {
+    return powf(x, 1.0f/2.2f);
 }
-
-
-//#define setPixelToneMappedColor(pixel, color) \
-//        color.x = toneMapped(color.x);    \
-//        color.y = toneMapped(color.y);    \
-//        color.z = toneMapped(color.z);    \
-//        setPixelColor(pixel, color)
-
-
-INLINE void setPixelBakedToneMappedColor(Pixel *pixel, vec3 *color) {
-    color->x = toneMappedBaked(color->x);
-    color->y = toneMappedBaked(color->y);
-    color->z = toneMappedBaked(color->z);
-    setPixelColor(pixel, color);
-}
-
-#define setPixelGammaCorrectedColor(pixel, color) \
-        color.x = gammaCorrected(color.x);    \
-        color.y = gammaCorrected(color.y);    \
-        color.z = gammaCorrected(color.z);    \
-        setPixelColor(pixel, color)
-
-//#define setPixelApproximatedGammaCorrectedColor(pixel, color) \
-//        color.x = gammaCorrectedApproximately(color.x);    \
-//        color.y = gammaCorrectedApproximately(color.y);    \
-//        color.z = gammaCorrectedApproximately(color.z);    \
-//        setPixelColor(pixel, color)
-
 
 INLINE f32 invDotVec3(vec3 a, vec3 b) {
     return clampValue(-dotVec3(a, b));
@@ -159,39 +115,6 @@ INLINE vec3 refract(vec3 V, vec3 N, f32 n1_over_n2, f32 NdotV) {
     V = scaleAddVec3(N, n1_over_n2 * -NdotV - sqrtf(1 - c), V);
     return normVec3(V);
 }
-
-//INLINE vec3 refract_old(vec3 V, vec3 normal, f32 NdotV, f32 n1_over_n2) {
-//    f32 c = n1_over_n2*n1_over_n2 * (1 - (NdotV*NdotV));
-//    if (c + EPS > 1) return reflectWithDot(V, normal, NdotV);
-//
-//    c = sqrtf(1 - c);
-//    vec3 a = scaleVec3(V, n1_over_n2);
-//    vec3 b = scaleVec3(normal, n1_over_n2 * -NdotV - c);
-//    return normVec3(addVec3(a, b));
-//}
-//
-//INLINE vec3 refract_gls(vec3 I, vec3 normal, f32 m) {
-//    f32 ni = dotVec3(normal, I);
-//    f32 c = 1 - m * m * (1 - ni * ni);
-//    if (c < 0)
-//        return reflectVec3(I, normal);
-//    else {
-//        vec3 b = scaleVec3(normal, m * ni + sqrt(c));
-//        return subVec3(scaleVec3(I, m), b);
-//    }
-//}
-//
-//INLINE vec3 refract_web(vec3 i, vec3 inv_n, f32 m) {
-//    vec3 n = invertedVec3(inv_n);
-//    f32 ni = dotVec3(n, i);
-//    f32 c = 1 - m*m*(1 - ni*ni);
-//    if (c < EPS)
-//        return reflectVec3(i, inv_n);
-//
-//    vec3 a = scaleVec3(n, sqrtf(c));
-//    vec3 b = scaleVec3(subVec3(i, scaleVec3(n, ni)), m);
-//    return normVec3(addVec3(a, b));
-//}
 
 INLINE bool isTransparentUV(vec2 uv) {
     u8 v = (u8)(uv.y * 4);
@@ -305,10 +228,6 @@ INLINE vec3 getAreaLightVector(Primitive *primitive, vec3 P, vec3 *v) {
     out = addVec3(out, scaleVec3(crossVec3(u2n, u3n), angle23));
     out = addVec3(out, scaleVec3(crossVec3(u3n, u4n), angle34));
     out = addVec3(out, scaleVec3(crossVec3(u4n, u1n), angle41));
-
-//    f32 u_length = primitive->scale.x * 2;
-//    f32 v_length = primitive->scale.z * 2;
-//    f32 A = u_length * v_length;
 
     return scaleVec3(out, 0.5f);
 }

@@ -40,9 +40,9 @@ set_target_properties(8_CPU PROPERTIES C_STANDARD 90)
 #endif()
 #set(CUDA_VERBOSE_BUILD ON)
 
-#project(8_XPU CUDA)
-#add_executable(8_XPU WIN32 src/examples/8_XPU.cu)
-#set_target_properties(8_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON C_STANDARD 90)
+project(8_XPU CUDA)
+add_executable(8_XPU WIN32 src/examples/8_XPU.cu)
+set_target_properties(8_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 project(obj2mesh)
 add_executable(obj2mesh src/obj2mesh.c)

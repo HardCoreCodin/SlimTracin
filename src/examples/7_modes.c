@@ -1,9 +1,9 @@
 #include "../SlimTracin/app.h"
 #include "../SlimTracin/core/time.h"
 #include "../SlimTracin/core/string.h"
-#include "../SlimTracin/viewport/hud.h"
 #include "../SlimTracin/viewport/navigation.h"
 #include "../SlimTracin/viewport/manipulation.h"
+#include "../SlimTracin/render/raytracer.h"
 
 void setupCamera(Camera *camera) {
     camera->transform.position.y = 7;
@@ -83,15 +83,7 @@ void updateAndRender() {
     if (!controls->is_pressed.alt)
         updateViewport(viewport, mouse);
 
-    fillPixelGrid(viewport->frame_buffer, Color(Black));
-    renderScene(scene, viewport);
-
-    if (viewport->settings.show_BVH) drawBVH(scene, viewport);
-    if (viewport->settings.show_SSB) drawSSB(scene, viewport);
-
-    drawSelection(scene, viewport, controls);
-    if (viewport->settings.show_hud)
-        drawHUD(viewport->frame_buffer, &viewport->hud);
+    renderScene(scene, viewport, controls);
 
     resetMouseChanges(mouse);
     endFrameTimer(timer);

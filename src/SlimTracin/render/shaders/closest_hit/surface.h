@@ -144,20 +144,12 @@ INLINE bool shadeFromEmissiveQuads(Shaded *shaded, Ray *ray, Trace *trace, Scene
     return found;
 }
 
-INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
+INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene, bool *lights_shaded) {
     RayHit *hit = &trace->closest_hit;
     vec3 color = getVec3Of(0);
     if (scene->materials[trace->closest_hit.material_id].flags & EMISSION) {
         if (!hit->from_behind)
             color = scene->materials[trace->closest_hit.material_id].emission;
-        if (scene->lights)
-            shadeLights(scene->lights,
-                        scene->settings.lights,
-                        ray->origin,
-                        ray->direction,
-                        trace->closest_hit.distance,
-                        &trace->sphere_hit,
-                        &color);
         return color;
     }
 
@@ -202,14 +194,14 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
 
         color = mulAddVec3(current_color, throughput, color);
 
-        if (scene->lights)
-            shadeLights(scene->lights,
-                        scene->settings.lights,
-                        shaded.viewing_origin,
-                        shaded.viewing_direction,
-                        max_distance,
-                        &trace->sphere_hit,
-                        &color);
+        if (scene->lights && shadeLights(scene->lights,
+                                        scene->settings.lights,
+                                        shaded.viewing_origin,
+                                        shaded.viewing_direction,
+                                        max_distance,
+                                        &trace->sphere_hit,
+                                        &color))
+            *lights_shaded = true;
 
         if (is_ref && --depth) {
             if (shaded.has.reflection) {
@@ -232,19 +224,11 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene) {
                 }
                 throughput = mulVec3(throughput, shaded.material->specular);
 
-                max_distance = hit->distance;
                 shaded.viewing_origin    = ray->origin;
                 shaded.viewing_direction = ray->direction;
 
                 continue;
-            } else if (scene->lights)
-                shadeLights(scene->lights,
-                            scene->settings.lights,
-                            ray->origin,
-                            ray->direction,
-                            INFINITY,
-                            &trace->sphere_hit,
-                            &color);
+            }
         }
 
         break;

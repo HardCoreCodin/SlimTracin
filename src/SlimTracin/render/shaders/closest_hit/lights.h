@@ -14,9 +14,10 @@ INLINE f32 getSphericalVolumeDensity(SphereHit *hit) {
             ) * (3.0f / 4.0f);
 }
 
-INLINE void shadeLights(Light *lights, u32 light_count, vec3 Ro, vec3 Rd, f32 max_distance, SphereHit *sphere_hit, vec3 *color) {
+INLINE bool shadeLights(Light *lights, u32 light_count, vec3 Ro, vec3 Rd, f32 max_distance, SphereHit *sphere_hit, vec3 *color) {
     Light *light = lights;
     f32 fog, one_over_light_radius;
+    bool hit_light = false;
     for (u32 i = 0; i < light_count; i++, light++) {
         one_over_light_radius = 8.0f / light->intensity;
         sphere_hit->furthest = max_distance * one_over_light_radius;
@@ -24,6 +25,10 @@ INLINE void shadeLights(Light *lights, u32 light_count, vec3 Ro, vec3 Rd, f32 ma
             fog = getSphericalVolumeDensity(sphere_hit);
             fog = powf(fog, 8) * 8;
             *color = scaleAddVec3(light->color, fog, *color);
+
+            hit_light = true;
         }
     }
+
+    return hit_light;
 }

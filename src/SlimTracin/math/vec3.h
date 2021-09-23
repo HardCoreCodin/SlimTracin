@@ -2,6 +2,10 @@
 
 #include "../core/base.h"
 
+INLINE bool isEqualVec3(vec3 a, vec3 b) {
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
 INLINE vec3 getVec3Of(f32 value) {
     vec3 out;
 
@@ -211,5 +215,11 @@ INLINE mat3 outerVec3(vec3 a, vec3 b) {
 }
 
 INLINE vec3 reflectVec3(vec3 V, vec3 N) {
-    return scaleAddVec3(N, -2 * dotVec3(N, V), V);
+    vec3 out = scaleVec3(N, -2 * dotVec3(N, V));
+         out = addVec3(out, V);
+    return out;
+}
+
+INLINE vec3 lerpVec3(vec3 from, vec3 to, f32 by) {
+    return scaleAddVec3(subVec3(to, from), by, from);
 }

@@ -220,13 +220,16 @@ typedef struct ProjectionPlane {
 } ProjectionPlane;
 
 typedef struct ViewportSettings {
+    vec3 background_color;
+    vec2i position;
     f32 near_clipping_plane_distance,
-        far_clipping_plane_distance;
+        far_clipping_plane_distance,
+        background_opacity;
     u32 hud_line_count;
     HUDLine *hud_lines;
-    enum RenderMode render_mode;
     enum ColorID hud_default_color;
-    bool show_hud, show_BVH, show_SSB, use_GPU;
+    enum RenderMode render_mode;
+    bool show_hud, depth_sort, antialias, use_cube_NDC, flip_z, show_BVH, show_SSB, show_selection, background_fill, use_GPU;
 } ViewportSettings;
 
 typedef struct Viewport {
@@ -238,6 +241,9 @@ typedef struct Viewport {
     PixelGrid *frame_buffer;
     Trace trace;
     Box default_box;
+    vec2i position;
+    mat4 pre_projection_matrix,
+         pre_projection_matrix_inverted;
 } Viewport;
 
 // Materials:
@@ -340,12 +346,7 @@ typedef struct Selection {
 } Selection;
 
 typedef struct SceneSettings {
-    u32 cameras;
-    u32 primitives;
-    u32 meshes;
-    u32 materials;
-    u32 lights;
-    u32 area_lights;
+    u32 cameras, primitives, meshes, materials, lights, area_lights;
     String file, *mesh_files;
 } SceneSettings;
 

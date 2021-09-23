@@ -8,7 +8,6 @@
 #include "../scene/box.h"
 
 #include "../render/SSB.h"
-#include "../render/raytracer.h"
 #include "../render/shaders/common.h"
 #include "../render/shaders/intersection/box.h"
 #include "../render/shaders/intersection/primitives.h"
@@ -48,6 +47,8 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
     RayHit *hit = &trace->closest_hit;
     Ray ray, *local_ray = &trace->local_space_ray;
     Primitive primitive;
+    vec2i mouse_pos = Vec2i(mouse->pos.x - viewport->settings.position.x,
+                            mouse->pos.y - viewport->settings.position.y);
 
     selection->transformed = false;
 
@@ -56,7 +57,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
             mouse->left_button.is_handled = true;
 
             // Cast a ray onto the scene to find the closest object behind the hovered pixel:
-            setRayFromCoords(&ray, mouse->pos, viewport);
+            setRayFromCoords(&ray, mouse_pos, viewport);
 
             ray.direction_reciprocal = oneOverVec3(ray.direction);
             trace->closest_hit.distance = trace->closest_hit.distance_squared = MAX_DISTANCE;
@@ -68,8 +69,8 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                                        scene->settings.primitives,
                                        false,
                                        true,
-                                       mouse->pos.x,
-                                       mouse->pos.y);
+                                       mouse_pos.x,
+                                       mouse_pos.y);
             if (light) {
                 for (u32 i = 0; i < scene->settings.lights; i++, light++) {
                     f32 light_radius = light->intensity / 8;
@@ -129,7 +130,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                 mouse->right_button.is_pressed) {
                 if (!selection->box_side) {
                     // Cast a ray onto the bounding box of the currently selected object:
-                    setRayFromCoords(&ray, mouse->pos, viewport);
+                    setRayFromCoords(&ray, mouse_pos, viewport);
 
                     primitive = getSelectedPrimitive(scene);
 
@@ -151,7 +152,7 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                     }
                 }
                 selection->transformed = true;
-                setRayFromCoords(&ray, mouse->pos, viewport);
+                setRayFromCoords(&ray, mouse_pos, viewport);
                 if (hitPlane(selection->transformation_plane_origin,
                              selection->transformation_plane_normal,
                              &ray.origin,
@@ -206,8 +207,8 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                 position.z = selection->object_distance;
 
                 // Screen -> NDC:
-                position.x = (f32) mouse->pos.x / dimensions->h_width - 1;
-                position.y = (f32) mouse->pos.y / dimensions->h_height - 1;
+                position.x = (f32) mouse_pos.x / dimensions->h_width - 1;
+                position.y = (f32) mouse_pos.y / dimensions->h_height - 1;
                 position.y = -position.y;
 
                 // NDC -> View:
@@ -233,8 +234,10 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
     if (selection->transformed) {
         if (selection->object_type == PrimitiveType_Light)
             uploadLights(scene);
-        else
-            updateScene(scene, viewport);
+        else {
+            updateSceneBVH(scene, &app->bvh_builder);
+            updateSceneSSB(scene, viewport);
+        }
     }
 }
 
@@ -249,16 +252,16 @@ void drawSelection(Scene *scene, Viewport *viewport, Controls *controls) {
         Primitive primitive = getSelectedPrimitive(scene);
 
         initBox(box);
-        drawBox(viewport, Color(Yellow), box, &primitive, BOX__ALL_SIDES);
+        drawBox(viewport, Color(Yellow), 1, box, &primitive, BOX__ALL_SIDES, 1);
         if (selection->box_side) {
-            RGBA color = Color(White);
+            vec3 color = Color(White);
             switch (selection->box_side) {
                 case Left:  case Right:  color = Color(Red);   break;
                 case Top:   case Bottom: color = Color(Green); break;
                 case Front: case Back:   color = Color(Blue);  break;
                 case NoSide: break;
             }
-            drawBox(viewport, color, box, &primitive, selection->box_side);
+            drawBox(viewport, color, 1, box, &primitive, selection->box_side, 1);
         }
     }
 }

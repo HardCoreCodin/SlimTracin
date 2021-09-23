@@ -82,6 +82,16 @@ INLINE vec4 scaleVec4(vec4 a, f32 factor) {
 
     return out;
 }
+INLINE vec4 scaleAddVec4(vec4 v, f32 factor, vec4 to_be_added) {
+    vec4 out;
+
+    out.x = fast_mul_add(v.x, factor, to_be_added.x);
+    out.y = fast_mul_add(v.y, factor, to_be_added.y);
+    out.z = fast_mul_add(v.z, factor, to_be_added.z);
+    out.w = fast_mul_add(v.w, factor, to_be_added.w);
+
+    return out;
+}
 
 INLINE vec4 mulVec4Mat4(vec4 in, mat4 m) {
     vec4 out;
@@ -118,4 +128,14 @@ INLINE f32 lengthVec4(vec4 v) {
 
 INLINE vec4 norm4(vec4 v) {
     return scaleVec4(v, 1.0f / lengthVec4(v));
+}
+
+INLINE f32 mulVec3Mat4(vec3 in, f32 w, mat4 M, vec3 *out) {
+    vec4 v4 = mulVec4Mat4(Vec4fromVec3(in, w), M);
+    *out = Vec3fromVec4(v4);
+    return v4.w;
+}
+
+INLINE vec4 lerpVec4(vec4 from, vec4 to, f32 by) {
+    return scaleAddVec4(subVec4(to, from), by, from);
 }

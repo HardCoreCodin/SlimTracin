@@ -3,6 +3,7 @@
 #include "../SlimTracin/core/string.h"
 #include "../SlimTracin/viewport/navigation.h"
 #include "../SlimTracin/viewport/manipulation.h"
+#include "../SlimTracin/render/raytracer.h"
 
 void setupCamera(Camera *camera) {
     camera->transform.position.y = 7;
@@ -96,9 +97,9 @@ void updateAndRender() {
     if (mouse->is_captured) navigateViewport(viewport, dt);
     else manipulateSelection(scene, viewport, controls);
     if (!controls->is_pressed.alt) updateViewport(viewport, mouse);
-    fillPixelGrid(viewport->frame_buffer, Color(Black));
-    renderScene(scene, viewport);
-    drawSelection(scene, viewport, controls);
+
+    renderScene(scene, viewport, controls);
+
     resetMouseChanges(mouse);
     endFrameTimer(&app->time.timers.update);
 }
