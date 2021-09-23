@@ -3,6 +3,7 @@
 #include "../core/types.h"
 #include "../core/init.h"
 #include "../math/vec3.h"
+#include "../math/quat.h"
 #include "../scene/box.h"
 #include "../viewport/hud.h"
 #include "../viewport/manipulation.h"
@@ -74,7 +75,7 @@ void drawBVH(Scene *scene, Viewport *viewport) {
     }
 }
 
-INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, Viewport *viewport, enum RenderMode mode, u16 x, u16 y) {
+INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode, FloatPixel *pixel, u16 x, u16 y, vec3 camera_position, quat camera_rotation) {
     vec3 Ro = ray->origin;
     vec3 Rd = ray->direction;
     vec3 color = getVec3Of(0);
@@ -84,11 +85,7 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, Viewport *viewport, e
     f32 closest_distance = hit_found ? trace->closest_hit.distance : INFINITY;
     f32 z = INFINITY;
     if (hit_found) {
-        // Project hit position to get the projected Z:
-        vec3 hit_position = trace->closest_hit.position;
-        hit_position = subVec3(hit_position, viewport->camera->transform.position);
-        hit_position = mulVec3Mat3(hit_position, viewport->camera->transform.rotation_matrix_inverted);
-        z = hit_position.z;
+        z = mulVec3Quat(subVec3(trace->closest_hit.position, camera_position), camera_rotation).z;
 
         switch (mode) {
             case RenderMode_Beauty: color = shadeSurface(ray, trace, scene, &lights_shaded); break;
@@ -111,24 +108,24 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, Viewport *viewport, e
         color.y *= FLOAT_TO_COLOR_COMPONENT;
         color.z *= FLOAT_TO_COLOR_COMPONENT;
 
-        PixelGrid *fb = viewport->frame_buffer;
-        FloatPixel *pixel = fb->float_pixels + (fb->dimensions.width * y + x);
-        setPixel(pixel, color, 1, z, fb->gamma_corrected_blending);
+        setPixel(pixel, color, 1, z, true);
     }
 }
 
 void renderSceneOnCPU(Scene *scene, Viewport *viewport) {
     PixelGrid *frame_buffer = viewport->frame_buffer;
+    FloatPixel* pixel = frame_buffer->float_pixels;
     Dimensions *dim = &frame_buffer->dimensions;
 
-    vec3 ray_origin = viewport->camera->transform.position;
+    quat camera_rotation = viewport->camera->transform.rotation_inverted;
+    vec3 camera_position = viewport->camera->transform.position;
     vec3 start      = viewport->projection_plane.start;
     vec3 right      = viewport->projection_plane.right;
     vec3 down       = viewport->projection_plane.down;
     vec3 current = start;
 
     Ray ray;
-    ray.origin = ray_origin;
+    ray.origin = camera_position;
 
     const u16 w = dim->width;
     const u16 h = dim->height;
@@ -136,13 +133,13 @@ void renderSceneOnCPU(Scene *scene, Viewport *viewport) {
     Trace *trace = &viewport->trace;
 
     for (u16 y = 0; y < h; y++) {
-        for (u16 x = 0; x < w; x++) {
-            ray.origin = ray_origin;
+        for (u16 x = 0; x < w; x++, pixel++) {
+            ray.origin = camera_position;
             ray.direction = normVec3(current);
             ray.direction_reciprocal = oneOverVec3(ray.direction);
             trace->closest_hit.distance = trace->closest_hit.distance_squared = INFINITY;
 
-            rayTrace(&ray, trace, scene, viewport, mode, x, y);
+            rayTrace(&ray, trace, scene, mode, pixel, x, y, camera_position, camera_rotation);
 
             current = addVec3(current, right);
         }
@@ -152,7 +149,7 @@ void renderSceneOnCPU(Scene *scene, Viewport *viewport) {
 
 #ifdef __CUDACC__
 
-__global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode, vec3 camera_position, Trace trace,
+__global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode, vec3 camera_position, quat camera_rotation, Trace trace,
                          u16 width,
                          u32 pixel_count,
 
@@ -174,7 +171,10 @@ __global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode,
     if (i >= pixel_count)
         return;
 
-    Pixel *pixel = (Pixel *)&d_pixels[i];
+    FloatPixel *pixel = d_pixels + i;
+    pixel->color = Color(Black);
+    pixel->opacity = 1;
+    pixel->depth = INFINITY;
 
     u16 x = i % width;
     u16 y = i / width;
@@ -212,7 +212,7 @@ __global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode,
     ray.direction_reciprocal = oneOverVec3(ray.direction);
     trace.closest_hit.distance = trace.closest_hit.distance_squared = INFINITY;
 
-    rayTrace(&ray, &trace, &scene, mode, x, y, pixel);
+    rayTrace(&ray, &trace, &scene, mode, pixel, x, y, camera_position, camera_rotation);
 }
 
 void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
@@ -227,7 +227,11 @@ void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
         blocks++;
 
     d_render<<<blocks, threads>>>(
-            viewport->projection_plane, viewport->settings.render_mode, viewport->camera->transform.position, viewport->trace,
+            viewport->projection_plane,
+            viewport->settings.render_mode,
+            viewport->camera->transform.position,
+            viewport->camera->transform.rotation_inverted,
+            viewport->trace,
 
             dim->width,
             pixel_count,
@@ -247,7 +251,7 @@ void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
             d_mesh_triangle_counts);
 
     checkErrors()
-    downloadN(d_pixels, (u32*)viewport->frame_buffer->pixels, dim->width_times_height)
+    downloadN(d_pixels, viewport->frame_buffer->float_pixels, dim->width_times_height)
 }
 #endif
 

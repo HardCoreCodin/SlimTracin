@@ -34,11 +34,11 @@ set_target_properties(8_CPU PROPERTIES C_STANDARD 90)
 
 # NOTE: Uncomment below if you have an NVIDIA GPU and have CUDA installed:
 
-#set(CMAKE_CUDA_STANDARD 11)
-#if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-#    set(CMAKE_CUDA_ARCHITECTURES 52)
-#endif()
-#set(CUDA_VERBOSE_BUILD ON)
+set(CMAKE_CUDA_STANDARD 11)
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+    set(CMAKE_CUDA_ARCHITECTURES 52)
+endif()
+set(CUDA_VERBOSE_BUILD ON)
 
 project(8_XPU CUDA)
 add_executable(8_XPU WIN32 src/examples/8_XPU.cu)

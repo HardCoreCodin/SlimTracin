@@ -4,6 +4,7 @@
 #include "../SlimTracin/viewport/hud.h"
 #include "../SlimTracin/viewport/navigation.h"
 #include "../SlimTracin/viewport/manipulation.h"
+#include "../SlimTracin/render/raytracer.h"
 
 void setupCamera(Camera *camera) {
     camera->transform.position.y = 7;
@@ -123,18 +124,13 @@ void updateAndRender() {
     if (mouse->wheel_scrolled)
         updateSelection(scene, viewport, controls);
 
-    fillPixelGrid(viewport->frame_buffer, Color(Black));
-    renderScene(scene, viewport);
+    if (viewport->settings.show_hud)
+        printNumberIntoString((i16)timer->average_frames_per_second, &viewport->hud.lines[1].value);
 
-    drawSelection(scene, viewport, controls);
+    renderScene(scene, viewport, controls);
+
     resetMouseChanges(mouse);
     endFrameTimer(timer);
-
-    if (viewport->settings.show_hud) {
-        printNumberIntoString((i16)timer->average_frames_per_second,
-                              &viewport->hud.lines[1].value);
-        drawHUD(viewport->frame_buffer, &viewport->hud);
-    }
 }
 
 void onMouseButtonDown(MouseButton *mouse_button) {
