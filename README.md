@@ -1,5 +1,7 @@
 <img src="SlimTracin_logo.png" alt="SlimTracin_logo"><br>
 
+<img src="src/examples/GPU.gif" alt="GPU" height="450"><br>
+
 A minimalist and platform-agnostic interactive/real-time raytracer.<br>
 Strong emphasis on simplicity, ease of use and almost no setup to get started with.<br>  
 Written in plain C and can be complied in either C or C++.<br>
@@ -32,13 +34,10 @@ Additional features include raytracing facilities:<br>
   <p float="left">
     <img src="src/examples/02_Geometry_setup.png" alt="2_shapes_scene_setup_code" width="360">
     <img src="src/examples/02_Geometry_update.png" alt="2_shapes_update_and_render_code" height="370">
-  </p>
-  <p float="left">
-    <img src="src/examples/02_Geometry.gif" alt="02_Geometry" height="360">
     <img src="src/examples/02_Geometry_transparency.png" alt="2_shapes_transparency_code" height="360">
   </p>
 * <b><u>Materials</b>:</u> Lambert, Blinn, Phong with controllable metal<br>
-  <img src="src/examples/3_materials_classic_shaders.gif" alt="3_materials_classic_shaders" height="360"><br>
+  <img src="src/examples/03_BlinnPhong.gif" alt="03_BlinnPhong" height="360"><br>
   <p float="left">
     <img src="src/examples/03_BlinnPhong_setup.png" alt="3_materials_classic_setup_code" height="450">
     <img src="src/examples/03_BlinnPhong_selection.png" alt="3_materials_classic_update_selection_code" height="450">
@@ -46,8 +45,8 @@ Additional features include raytracing facilities:<br>
 * <b><u>Materials</b>:</u> Reflective or Refractive with controllable trace-height<br>
   <img src="src/examples/04_GlassMirror.gif" alt="4_materials_reflective" height="360"><br>
   <p float="left">   
-    <img src="src/examples/04_GlassMirror_setup.png" alt="4_materials_ref_setup_code" height="450">
-    <img src="src/examples/04_GlassMirror_selection.png" alt="4_materials_ref_update_selection_code" height="450">
+    <img src="src/examples/04_GlassMirror_setup.png" alt="4_materials_ref_setup_code" height="360">
+    <img src="src/examples/04_GlassMirror_selection.png" alt="4_materials_ref_update_selection_code" height="300">
   </p>
 * <b><u>Materials</b>:</u> Physically Based (Cook-Torrance BRDF)<br>
   <img src="src/examples/05_PBR.gif" alt="05_PBR" height="360"><br>
@@ -80,7 +79,6 @@ Additional features include raytracing facilities:<br>
   <img src="src/examples/09_Textures.png" alt="09_Textures" height="400"><br>
 * <b><u>XPU</b>:</u> CPU vs. GPU (CUDA)<br>
   <img src="src/examples/XPU.gif" alt="XPU" height="360"><br>
-  <img src="src/examples/GPU.gif" alt="GPU" height="360"><br>
   Compiling using CUDA allows for toggling between rendering on the CPU or the GPU.<br>
   <img src="src/examples/XPU.png" alt="XPU" height="400">
 * <b><u>obj2mesh</b>:</u> Also privided is a separate CLI tool for converting `.obj` files to `.mesh` files.<br>
