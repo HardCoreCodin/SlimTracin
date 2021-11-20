@@ -30,7 +30,8 @@ void _windowRedraw() {
 
 void _windowResize(u16 width, u16 height) {
     if (!app->is_running) return;
-    updateDimensions(&app->window_content.dimensions, width, height);
+
+    updateDimensions(&app->window_content.dimensions, width, height, app->window_content.QCAA);
     updateSceneSSB(&app->scene, &app->viewport);
 
     if (app->on.windowResize) app->on.windowResize(width, height);
@@ -139,6 +140,12 @@ void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *
     scene->selection->object_type = scene->selection->object_id = 0;
     scene->selection->changed = false;
 
+    if (settings->textures && settings->texture_files) {
+        scene->textures = (Texture*)allocateMemory(memory, sizeof(Texture) * settings->textures);
+        for (u32 i = 0; i < settings->textures; i++)
+            loadTextureFromFile(&scene->textures[i], settings->texture_files[i].char_ptr, platform, memory);
+    }
+
     if (settings->meshes && settings->mesh_files) {
         scene->meshes               = (Mesh*)allocateMemory(memory, sizeof(Mesh) * settings->meshes);
         scene->mesh_bvh_node_counts = (u32* )allocateMemory(memory, sizeof(u32)  * settings->meshes);
@@ -151,16 +158,8 @@ void initScene(Scene *scene, SceneSettings *settings, Memory *memory, Platform *
     }
     if (settings->materials)   {
         Material *material = scene->materials = (Material*)allocateMemory(memory, sizeof(Material) * settings->materials);
-        for (u32 i = 0; i < settings->materials; i++, material++) {
-            material->specular   = getVec3Of(1);
-            material->emission   = getVec3Of(1);
-            material->diffuse    = getVec3Of(1);
-            material->roughness  = 1;
-            material->shininess  = 1;
-            material->n1_over_n2 = 1;
-            material->n2_over_n1 = 1;
-            material->flags      = LAMBERT;
-        }
+        for (u32 i = 0; i < settings->materials; i++, material++)
+            initMaterial(material);
     }
     if (settings->lights) {
         Light *light = scene->lights = (Light*)allocateMemory(memory, sizeof(Light) * settings->lights);
@@ -247,20 +246,32 @@ void _initApp(Defaults *defaults, void* window_content_memory) {
     memory_size += scene_settings->primitives * sizeof(Rect);
     memory_size += scene_settings->primitives * sizeof(vec3);
     memory_size += scene_settings->meshes     * sizeof(Mesh);
+    memory_size += scene_settings->textures   * sizeof(Texture);
     memory_size += scene_settings->meshes     * sizeof(u32) * 2;
     memory_size += scene_settings->cameras    * sizeof(Camera);
     memory_size += scene_settings->materials  * sizeof(Material);
     memory_size += scene_settings->area_lights * sizeof(AreaLight);
     memory_size += scene_settings->lights * sizeof(Light);
     memory_size += viewport_settings->hud_line_count * sizeof(HUDLine);
+
+    if (scene_settings->textures &&
+        scene_settings->texture_files)
+        for (u32 i = 0; i < scene_settings->textures; i++)
+            memory_size += getTextureMemorySize(scene_settings->texture_files[i].char_ptr, &app->platform);
+
     u32 max_triangle_count = 0;
+    u32 max_vertex_count = 0;
+    u32 max_normal_count = 0;
     u32 max_bvh_depth = 0;
     if (scene_settings->meshes && scene_settings->mesh_files) {
         Mesh mesh;
         for (u32 i = 0; i < scene_settings->meshes; i++) {
-            memory_size += getMeshMemorySize(&mesh, scene_settings->mesh_files[i].char_ptr, &app->platform);
+            u64 mesh_size = getMeshMemorySize(&mesh, scene_settings->mesh_files[i].char_ptr, &app->platform);
+            memory_size += mesh_size;
             if (mesh.triangle_count > max_triangle_count) max_triangle_count = mesh.triangle_count;
-            if (mesh.bvh.depth > max_bvh_depth) max_bvh_depth = mesh.bvh.depth;
+            if (mesh.vertex_count > max_vertex_count) max_vertex_count = mesh.vertex_count;
+            if (mesh.normals_count > max_normal_count) max_normal_count = mesh.normals_count;
+            if (mesh.bvh.height > max_bvh_depth) max_bvh_depth = mesh.bvh.height;
         }
     }
     u32 max_leaf_count = scene_settings->primitives > max_triangle_count ? scene_settings->primitives : max_triangle_count;
@@ -268,12 +279,17 @@ void _initApp(Defaults *defaults, void* window_content_memory) {
     memory_size += getBVHBuilderMemorySize(&app->scene, max_leaf_count);
     memory_size += sizeof(u32) * (scene_settings->primitives + max_bvh_depth + 2); // Trace stack sizes
 
+    memory_size += max_vertex_count * (sizeof(vec3) + sizeof(vec4) + 1);
+    memory_size += max_normal_count * sizeof(vec3);
+    memory_size += sizeof(vec3) * scene_settings->lights;
+
     initAppMemory(memory_size);
     initScene(scene, scene_settings, memory, &app->platform);
 
     if (app->on.sceneReady) app->on.sceneReady(scene);
 
     initBVHBuilder(builder, scene, memory);
+
     uploadScene(scene);
     updateSceneBVH(scene, builder);
     uploadMeshBVHs(scene);

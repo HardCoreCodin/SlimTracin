@@ -19,7 +19,7 @@ Primitive getSelectedPrimitive(Scene *scene) {
         primitive.type = (enum PrimitiveType)selection->object_type;
         primitive.id   = selection->object_id;
         primitive.position = scene->lights[selection->object_id].position_or_direction;
-        primitive.scale = getVec3Of(scene->lights[selection->object_id].intensity / 8);
+        primitive.scale = getVec3Of(scene->lights[selection->object_id].intensity * (1.0f / (8.0f * 16.0f)));
         primitive.rotation = getIdentityQuaternion();
         primitive.flags = IS_TRANSLATED | IS_SCALED;
     } else {
@@ -69,11 +69,11 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                                        scene->settings.primitives,
                                        false,
                                        true,
-                                       mouse_pos.x,
-                                       mouse_pos.y);
+                                       (u16)mouse_pos.x,
+                                       (u16)mouse_pos.y);
             if (light) {
                 for (u32 i = 0; i < scene->settings.lights; i++, light++) {
-                    f32 light_radius = light->intensity / 8;
+                    f32 light_radius = light->intensity * (1.0f / (8.0f * 16.0f));
                     trace->sphere_hit.furthest = hit->distance / light_radius;
                     if (hitSphereSimple(ray.origin,
                                         ray.direction,
@@ -207,13 +207,13 @@ void manipulateSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                 position.z = selection->object_distance;
 
                 // Screen -> NDC:
-                position.x = (f32) mouse_pos.x / dimensions->h_width - 1;
-                position.y = (f32) mouse_pos.y / dimensions->h_height - 1;
+                position.x = ((f32)mouse_pos.x + 0.5f) / dimensions->h_width  - 1;
+                position.y = ((f32)mouse_pos.y + 0.5f) / dimensions->h_height - 1;
                 position.y = -position.y;
 
                 // NDC -> View:
-                position.x *= position.z / camera->focal_length;
-                position.y *= position.z / (camera->focal_length * dimensions->width_over_height);
+                position.x *= position.z / (camera->focal_length * dimensions->height_over_width);
+                position.y *= position.z / camera->focal_length;
 
                 // View -> World:
                 position = addVec3(mulVec3Mat3(position, *rot), *cam_pos);
@@ -252,7 +252,7 @@ void drawSelection(Scene *scene, Viewport *viewport, Controls *controls) {
         Primitive primitive = getSelectedPrimitive(scene);
 
         initBox(box);
-        drawBox(viewport, Color(Yellow), 1, box, &primitive, BOX__ALL_SIDES, 1);
+        drawBox(box, BOX__ALL_SIDES, &primitive, Color(Yellow), 0.5f, 1, viewport);
         if (selection->box_side) {
             vec3 color = Color(White);
             switch (selection->box_side) {
@@ -261,7 +261,7 @@ void drawSelection(Scene *scene, Viewport *viewport, Controls *controls) {
                 case Front: case Back:   color = Color(Blue);  break;
                 case NoSide: break;
             }
-            drawBox(viewport, color, 1, box, &primitive, selection->box_side, 1);
+            drawBox(box, selection->box_side, &primitive, color, 0.5f, 2, viewport);
         }
     }
 }

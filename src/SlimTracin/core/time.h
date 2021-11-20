@@ -23,11 +23,11 @@ INLINE void averageTimer(Timer *timer) {
     timer->accumulated_ticks = timer->accumulated_frame_count = 0;
 }
 
-INLINE void startFrameTimer(Timer *timer) {
+INLINE void beginFrameTimer(Timer *timer) {
     timer->ticks_after = timer->ticks_before;
     timer->ticks_before = timer->getTicks();
     timer->ticks_diff = timer->ticks_before - timer->ticks_after;
-    timer->delta_time = (f32)(timer->ticks_diff * timer->ticks->per_tick.seconds);
+    timer->delta_time = (f32)((f64)timer->ticks_diff * timer->ticks->per_tick.seconds);
 }
 
 INLINE void endFrameTimer(Timer *timer) {
@@ -35,4 +35,13 @@ INLINE void endFrameTimer(Timer *timer) {
     accumulateTimer(timer);
     if (timer->accumulated_ticks >= timer->ticks->per_second / 4)
         averageTimer(timer);
+}
+
+void beginFrame(Timer *timer) {
+    beginFrameTimer(timer);
+}
+
+void endFrame(Timer *timer, Mouse *mouse) {
+    resetMouseChanges(mouse);
+    endFrameTimer(timer);
 }

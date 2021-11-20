@@ -1,36 +1,38 @@
 cmake_minimum_required(VERSION 3.8)
 
-project(1_lights)
-add_executable(1_lights WIN32 src/examples/1_lights.c)
-set_target_properties(1_lights PROPERTIES C_STANDARD 90)
+project(obj2mesh)
+add_executable(obj2mesh src/obj2mesh.c)
 
-project(2_shapes)
-add_executable(2_shapes WIN32 src/examples/2_shapes.c)
-set_target_properties(2_shapes PROPERTIES C_STANDARD 90)
+project(bmp2texture)
+add_executable(bmp2texture src/bmp2texture.c)
 
-project(3_materials_classic)
-add_executable(3_materials_classic WIN32 src/examples/3_materials_classic_shaders.c)
-set_target_properties(3_materials_classic PROPERTIES C_STANDARD 90)
+project(01_Lights)
+add_executable(01_Lights WIN32 src/examples/01_Lights.c)
 
-project(4_materials_ref)
-add_executable(4_materials_ref WIN32 src/examples/4_materials_reflective_refractive.c)
-set_target_properties(4_materials_ref PROPERTIES C_STANDARD 90)
+project(02_Geometry)
+add_executable(02_Geometry WIN32 src/examples/02_Geometry.c)
 
-project(5_materials_emissive)
-add_executable(5_materials_emissive WIN32 src/examples/5_materials_emissive.c)
-set_target_properties(5_materials_emissive PROPERTIES C_STANDARD 90)
+project(03_BlinnPhong)
+add_executable(03_BlinnPhong WIN32 src/examples/03_BlinnPhong.c)
 
-project(6_mesh)
-add_executable(6_meshes WIN32 src/examples/6_meshes.c)
-set_target_properties(6_meshes PROPERTIES C_STANDARD 90)
+project(04_GlassMirror)
+add_executable(04_GlassMirror WIN32 src/examples/04_GlassMirror.c)
 
-project(7_modes)
-add_executable(7_modes WIN32 src/examples/7_modes.c)
-set_target_properties(7_modes PROPERTIES C_STANDARD 90)
+project(05_PBR)
+add_executable(05_PBR WIN32 src/examples/05_PBR.c)
 
-project(8_CPU)
-add_executable(8_CPU WIN32 src/examples/8_XPU.c)
-set_target_properties(8_CPU PROPERTIES C_STANDARD 90)
+project(06_AreaLights)
+add_executable(06_AreaLights WIN32 src/examples/06_AreaLights.c)
+
+project(07_Meshes)
+add_executable(07_Meshes WIN32 src/examples/07_Meshes.c)
+
+project(08_Modes)
+add_executable(08_Modes WIN32 src/examples/08_Modes.c)
+
+project(09_Textures)
+add_executable(09_Textures WIN32 src/examples/09_Textures.c)
+
 
 # NOTE: Uncomment below if you have an NVIDIA GPU and have CUDA installed:
 
@@ -40,12 +42,42 @@ if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
 endif()
 set(CUDA_VERBOSE_BUILD ON)
 
-project(8_XPU CUDA)
-add_executable(8_XPU WIN32 src/examples/8_XPU.cu)
-set_target_properties(8_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-project(obj2mesh)
-add_executable(obj2mesh src/obj2mesh.c)
+project(01_Lights_XPU CUDA)
+add_executable(01_Lights_XPU WIN32 src/examples/01_Lights.cu)
+set_target_properties(01_Lights_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+project(02_Geometry_XPU CUDA)
+add_executable(02_Geometry_XPU WIN32 src/examples/02_Geometry.cu)
+set_target_properties(02_Geometry_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+project(03_BlinnPhong_XPU CUDA)
+add_executable(03_BlinnPhong_XPU WIN32 src/examples/03_BlinnPhong.cu)
+set_target_properties(03_BlinnPhong_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+project(04_GlassMirror_XPU CUDA)
+add_executable(04_GlassMirror_XPU WIN32 src/examples/04_GlassMirror.cu)
+set_target_properties(04_GlassMirror_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+project(05_PBR_XPU CUDA)
+add_executable(05_PBR_XPU WIN32 src/examples/05_PBR.cu)
+set_target_properties(05_PBR_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+project(06_AreaLights_XPU CUDA)
+add_executable(06_AreaLights_XPU WIN32 src/examples/06_AreaLights.cu)
+set_target_properties(06_AreaLights_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+project(07_Meshes_XPU CUDA)
+add_executable(07_Meshes_XPU WIN32 src/examples/07_Meshes.cu)
+set_target_properties(07_Meshes_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+project(08_Modes_XPU CUDA)
+add_executable(08_Modes_XPU WIN32 src/examples/08_Modes.cu)
+set_target_properties(08_Modes_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+project(09_Textures_XPU CUDA)
+add_executable(09_Textures_XPU WIN32 src/examples/09_Textures.cu)
+set_target_properties(09_Textures_XPU PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 add_compile_options(
         $<$<CONFIG:RELEASE>:-O3>

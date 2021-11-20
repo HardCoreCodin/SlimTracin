@@ -110,23 +110,33 @@ u8 bitmap_125[] = {0,0,0,0,0,0,255,255,128,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,252,255
 u8 bitmap_126[] = {0,0,0,128,128,128,128,0,0,0,0,0,128,128,0,0,0,0,0,0,15,15,1,1,3,7,14,12,12,14,15,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 u8 *char_addr[] = {bitmap_32,bitmap_33,bitmap_34,bitmap_35,bitmap_36,bitmap_37,bitmap_38,bitmap_39,bitmap_40,bitmap_41,bitmap_42,bitmap_43,bitmap_44,bitmap_45,bitmap_46,bitmap_47,bitmap_48,bitmap_49,bitmap_50,bitmap_51,bitmap_52,bitmap_53,bitmap_54,bitmap_55,bitmap_56,bitmap_57,bitmap_58,bitmap_59,bitmap_60,bitmap_61,bitmap_62,bitmap_63,bitmap_64,bitmap_65,bitmap_66,bitmap_67,bitmap_68,bitmap_69,bitmap_70,bitmap_71,bitmap_72,bitmap_73,bitmap_74,bitmap_75,bitmap_76,bitmap_77,bitmap_78,bitmap_79,bitmap_80,bitmap_81,bitmap_82,bitmap_83,bitmap_84,bitmap_85,bitmap_86,bitmap_87,bitmap_88,bitmap_89,bitmap_90,bitmap_91,bitmap_92,bitmap_93,bitmap_94,bitmap_95,bitmap_96,bitmap_97,bitmap_98,bitmap_99,bitmap_100,bitmap_101,bitmap_102,bitmap_103,bitmap_104,bitmap_105,bitmap_106,bitmap_107,bitmap_108,bitmap_109,bitmap_110,bitmap_111,bitmap_112,bitmap_113,bitmap_114,bitmap_115,bitmap_116,bitmap_117,bitmap_118,bitmap_119,bitmap_120,bitmap_121,bitmap_122,bitmap_123,bitmap_124,bitmap_125,bitmap_126};
 
-void drawText(PixelGrid *canvas, RGBA color, char *str, i32 x, i32 y) {
-    if (x < 0 || x > canvas->dimensions.width - FONT_WIDTH ||
-        y < 0 || y > canvas->dimensions.height - FONT_HEIGHT)
+void drawText(PixelGrid *canvas, vec3 color, char *str, i32 x, i32 y) {
+    u16 width = canvas->dimensions.width;
+    u16 height = canvas->dimensions.height;
+
+    if (x < 0 || x > width - FONT_WIDTH ||
+        y < 0 || y > height - FONT_HEIGHT)
         return;
 
-    u16 current_x = x;
-    u16 current_y = y;
-    u16 t_offset;
-    u16 pixel_line_step = canvas->dimensions.width * FONT_HEIGHT / 3;
-    u32 char_line_step  = canvas->dimensions.width * LINE_HEIGHT;
-    Pixel* pixel = canvas->pixels + canvas->dimensions.width * y + x;
-    Pixel* character_pixel;
+    FloatPixel pixel_value;
+    pixel_value.depth = 0;
+    pixel_value.opacity = 1;
+    pixel_value.color.r =  color.r * color.r;
+    pixel_value.color.g =  color.g * color.g;
+    pixel_value.color.b =  color.b * color.b;
+
+    i32 current_x = x;
+    i32 current_y = y;
+    i32 t_offset;
+    i32 pixel_line_step = width * FONT_HEIGHT / 3;
+    i32 char_line_step  = width * LINE_HEIGHT;
+    FloatPixel* pixel = canvas->float_pixels + width * y + x;
+    FloatPixel* character_pixel;
     u8* byte;
     char character = *str;
     while (character) {
         if (character == '\n') {
-            if (current_y + FONT_HEIGHT > canvas->dimensions.height)
+            if (current_y + FONT_HEIGHT > height)
                 break;
 
             pixel += char_line_step - current_x + x;
@@ -145,9 +155,9 @@ void drawText(PixelGrid *canvas, RGBA color, char *str, i32 x, i32 y) {
                     for (int h = 0; h < FONT_HEIGHT/3; h++) {
                         /* skip background bits */
                         if (*byte & (0x80  >> h))
-                            character_pixel->color = color;
+                            *character_pixel = pixel_value;
 
-                        character_pixel -= canvas->dimensions.width;
+                        character_pixel -= width;
                     }
                     byte++;
                     character_pixel += pixel_line_step + 1;
@@ -155,14 +165,14 @@ void drawText(PixelGrid *canvas, RGBA color, char *str, i32 x, i32 y) {
             }
             pixel += FONT_WIDTH;
             current_x += FONT_WIDTH;
-            if (current_x + FONT_WIDTH > canvas->dimensions.width)
+            if (current_x + FONT_WIDTH > width)
                 return;
         }
         character = *++str;
     }
 }
 
-void drawNumber(PixelGrid *canvas, RGBA color, i32 number, i32 x, i32 y) {
+void drawNumber(PixelGrid *canvas, vec3 color, i32 number, i32 x, i32 y) {
     static NumberString number_string;
     printNumberIntoString(number, &number_string);
     drawText(canvas, color, number_string.string.char_ptr, x - number_string.string.length * FONT_WIDTH, y);

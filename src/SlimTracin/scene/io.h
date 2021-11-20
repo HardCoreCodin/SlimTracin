@@ -3,15 +3,78 @@
 #include "../core/base.h"
 #include "../core/types.h"
 
+u32 getTextureMemorySize(char* file_path, Platform *platform) {
+    void *file = platform->openFileForReading(file_path);
+
+    Texture texture;
+    platform->readFromFile(&texture.width,  sizeof(u16),  file);
+    platform->readFromFile(&texture.height, sizeof(u16),  file);
+    platform->readFromFile(&texture.mipmap, sizeof(bool), file);
+
+    u16 mip_width  = texture.width;
+    u16 mip_height = texture.height;
+
+    u32 memory_size = 0;
+    texture.mip_count = 0;
+    do {
+        memory_size += sizeof(TextureMip);
+        memory_size += (mip_width + 1) * (mip_height + 1) * sizeof(TexelQuad);
+
+        mip_width /= 2;
+        mip_height /= 2;
+        texture.mip_count++;
+    } while (texture.mipmap && mip_width > 2 && mip_height > 2);
+
+    platform->closeFile(file);
+
+    return memory_size;
+}
+
+void loadTextureFromFile(Texture *texture, char* file_path, Platform *platform, Memory *memory) {
+    void *file = platform->openFileForReading(file_path);
+    platform->readFromFile(&texture->width,  sizeof(u16),  file);
+    platform->readFromFile(&texture->height, sizeof(u16),  file);
+    platform->readFromFile(&texture->mipmap, sizeof(bool), file);
+    platform->readFromFile(&texture->wrap,   sizeof(bool), file);
+    platform->readFromFile(&texture->mip_count, sizeof(u8), file);
+
+    texture->mips = (TextureMip*)allocateMemory(memory, sizeof(TextureMip) * texture->mip_count);
+
+    u32 size, height, stride;
+    TextureMip *texture_mip = texture->mips;
+    for (u8 mip_index = 0; mip_index < texture->mip_count; mip_index++, texture_mip++) {
+        platform->readFromFile(&texture_mip->width,  sizeof(u16), file);
+        platform->readFromFile(&texture_mip->height, sizeof(u16), file);
+
+        height = texture_mip->height + 1;
+        stride = texture_mip->width  + 1;
+
+        size = sizeof(TexelQuad) * height * stride;
+        texture_mip->texel_quads = (TexelQuad*)allocateMemory(memory, size);
+        platform->readFromFile(texture_mip->texel_quads, size, file);
+    }
+
+    platform->closeFile(file);
+}
+
+
 u32 getMeshMemorySize(Mesh *mesh, char *file_path, Platform *platform) {
     void *file = platform->openFileForReading(file_path);
 
-    platform->readFromFile(mesh, sizeof(Mesh), file);
+    platform->readFromFile(&mesh->aabb,           sizeof(AABB), file);
+    platform->readFromFile(&mesh->vertex_count,   sizeof(u32),  file);
+    platform->readFromFile(&mesh->triangle_count, sizeof(u32),  file);
+    platform->readFromFile(&mesh->edge_count,     sizeof(u32),  file);
+    platform->readFromFile(&mesh->uvs_count,      sizeof(u32),  file);
+    platform->readFromFile(&mesh->normals_count,  sizeof(u32),  file);
+    platform->readFromFile(&mesh->bvh.node_count, sizeof(u32),  file);
+    platform->readFromFile(&mesh->bvh.height,     sizeof(u32),  file);
 
-    u32 memory_size = mesh->vertex_count * sizeof(vec3);
-    memory_size += mesh->edge_count * sizeof(EdgeVertexIndices);
-    memory_size += mesh->bvh.node_count * sizeof(BVHNode);
-    memory_size += mesh->triangle_count * (sizeof(u32) + sizeof(Triangle) + sizeof(TriangleVertexIndices));
+    u32 memory_size = 0;
+    memory_size += mesh->vertex_count   * sizeof(vec3);
+    memory_size += mesh->triangle_count * sizeof(TriangleVertexIndices);
+    memory_size += mesh->edge_count     * sizeof(EdgeVertexIndices);
+    memory_size += mesh->triangle_count * sizeof(Triangle);
 
     if (mesh->uvs_count) {
         memory_size += sizeof(vec2) * mesh->uvs_count;
@@ -29,38 +92,53 @@ u32 getMeshMemorySize(Mesh *mesh, char *file_path, Platform *platform) {
     return memory_size;
 }
 
-void initMesh(Mesh *mesh, Memory *memory) {
-    mesh->triangles               = (Triangle*             )allocateMemory(memory, sizeof(Triangle)              * mesh->triangle_count);
+void loadMeshFromFile(Mesh *mesh, char *file_path, Platform *platform, Memory *memory) {
+    void *file = platform->openFileForReading(file_path);
+
+    mesh->vertex_normals          = null;
+    mesh->vertex_normal_indices   = null;
+    mesh->vertex_uvs              = null;
+    mesh->vertex_uvs_indices      = null;
+    mesh->triangles               = null;
+    mesh->bvh.nodes               = null;
+    mesh->bvh.leaf_ids            = null;
+
+    platform->readFromFile(&mesh->aabb,           sizeof(AABB), file);
+    platform->readFromFile(&mesh->vertex_count,   sizeof(u32),  file);
+    platform->readFromFile(&mesh->triangle_count, sizeof(u32),  file);
+
+    initBVH(&mesh->bvh, mesh->triangle_count, memory);
+
+    platform->readFromFile(&mesh->edge_count,     sizeof(u32),  file);
+    platform->readFromFile(&mesh->uvs_count,      sizeof(u32),  file);
+    platform->readFromFile(&mesh->normals_count,  sizeof(u32),  file);
+    platform->readFromFile(&mesh->bvh.node_count, sizeof(u32),  file);
+    platform->readFromFile(&mesh->bvh.height,     sizeof(u32),  file);
+
     mesh->vertex_positions        = (vec3*                 )allocateMemory(memory, sizeof(vec3)                  * mesh->vertex_count);
     mesh->vertex_position_indices = (TriangleVertexIndices*)allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count);
     mesh->edge_vertex_indices     = (EdgeVertexIndices*    )allocateMemory(memory, sizeof(EdgeVertexIndices)     * mesh->edge_count);
-    mesh->vertex_uvs              = mesh->uvs_count     ? (vec2*                 )allocateMemory(memory, sizeof(vec2)                  * mesh->uvs_count)      : null;
-    mesh->vertex_normals          = mesh->normals_count ? (vec3*                 )allocateMemory(memory, sizeof(vec3)                  * mesh->normals_count)  : null;
-    mesh->vertex_uvs_indices      = mesh->uvs_count     ? (TriangleVertexIndices*)allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count) : null;
-    mesh->vertex_normal_indices   = mesh->normals_count ? (TriangleVertexIndices*)allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count) : null;
-    initBVH(&mesh->bvh, mesh->triangle_count, memory);
-}
+    mesh->triangles               = (Triangle*             )allocateMemory(memory, sizeof(Triangle)              * mesh->triangle_count);
 
-void loadMeshFromFile(Mesh *mesh, char* file_path, Platform *platform, Memory *memory) {
-    void *file = platform->openFileForReading(file_path);
-
-    platform->readFromFile(mesh, sizeof(Mesh), file);
-    initMesh(mesh, memory);
-
-    platform->readFromFile(mesh->bvh.nodes,                    sizeof(BVHNode)               * mesh->bvh.node_count, file);
-    platform->readFromFile(mesh->bvh.leaf_ids,                 sizeof(u32)                   * mesh->triangle_count, file);
-    platform->readFromFile(mesh->triangles,                    sizeof(Triangle)              * mesh->triangle_count, file);
     platform->readFromFile(mesh->vertex_positions,             sizeof(vec3)                  * mesh->vertex_count,   file);
     platform->readFromFile(mesh->vertex_position_indices,      sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
     platform->readFromFile(mesh->edge_vertex_indices,          sizeof(EdgeVertexIndices)     * mesh->edge_count,     file);
     if (mesh->uvs_count) {
+        mesh->vertex_uvs         = (vec2*                 )allocateMemory(memory, sizeof(vec2)                  * mesh->uvs_count);
+        mesh->vertex_uvs_indices = (TriangleVertexIndices*)allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count);
         platform->readFromFile(mesh->vertex_uvs,               sizeof(vec2)                  * mesh->uvs_count,      file);
         platform->readFromFile(mesh->vertex_uvs_indices,       sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
     }
     if (mesh->normals_count) {
+        mesh->vertex_normals          = (vec3*                 )allocateMemory(memory, sizeof(vec3)                  * mesh->normals_count);
+        mesh->vertex_normal_indices   = (TriangleVertexIndices*)allocateMemory(memory, sizeof(TriangleVertexIndices) * mesh->triangle_count);
         platform->readFromFile(mesh->vertex_normals,                sizeof(vec3)                  * mesh->normals_count,  file);
         platform->readFromFile(mesh->vertex_normal_indices,         sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
     }
+
+    platform->readFromFile(mesh->triangles,                    sizeof(Triangle)              * mesh->triangle_count, file);
+    platform->readFromFile(mesh->bvh.nodes,                    sizeof(BVHNode)               * mesh->bvh.node_count, file);
+    platform->readFromFile(mesh->bvh.leaf_ids,                 sizeof(u32)                   * mesh->triangle_count, file);
 
     platform->closeFile(file);
 }
@@ -68,10 +146,15 @@ void loadMeshFromFile(Mesh *mesh, char* file_path, Platform *platform, Memory *m
 void saveMeshToFile(Mesh *mesh, char* file_path, Platform *platform) {
     void *file = platform->openFileForWriting(file_path);
 
-    platform->writeToFile(mesh, sizeof(Mesh), file);
-    platform->writeToFile(mesh->bvh.nodes,               sizeof(BVHNode)               * mesh->bvh.node_count, file);
-    platform->writeToFile(mesh->bvh.leaf_ids,            sizeof(u32)                   * mesh->triangle_count, file);
-    platform->writeToFile(mesh->triangles,               sizeof(Triangle)              * mesh->triangle_count, file);
+    platform->writeToFile(&mesh->aabb,           sizeof(AABB), file);
+    platform->writeToFile(&mesh->vertex_count,   sizeof(u32),  file);
+    platform->writeToFile(&mesh->triangle_count, sizeof(u32),  file);
+    platform->writeToFile(&mesh->edge_count,     sizeof(u32),  file);
+    platform->writeToFile(&mesh->uvs_count,      sizeof(u32),  file);
+    platform->writeToFile(&mesh->normals_count,  sizeof(u32),  file);
+    platform->writeToFile(&mesh->bvh.node_count, sizeof(u32),  file);
+    platform->writeToFile(&mesh->bvh.height,     sizeof(u32),  file);
+
     platform->writeToFile(mesh->vertex_positions,        sizeof(vec3)                  * mesh->vertex_count,   file);
     platform->writeToFile(mesh->vertex_position_indices, sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
     platform->writeToFile(mesh->edge_vertex_indices,     sizeof(EdgeVertexIndices)     * mesh->edge_count,     file);
@@ -84,8 +167,13 @@ void saveMeshToFile(Mesh *mesh, char* file_path, Platform *platform) {
         platform->writeToFile(mesh->vertex_normal_indices, sizeof(TriangleVertexIndices) * mesh->triangle_count, file);
     }
 
+    platform->writeToFile(mesh->triangles,               sizeof(Triangle)              * mesh->triangle_count, file);
+    platform->writeToFile(mesh->bvh.nodes,               sizeof(BVHNode)               * mesh->bvh.node_count, file);
+    platform->writeToFile(mesh->bvh.leaf_ids,            sizeof(u32)                   * mesh->triangle_count, file);
+
     platform->closeFile(file);
 }
+
 
 void loadSceneFromFile(Scene *scene, char* file_path, Platform *platform) {
     void *file = platform->openFileForReading(file_path);

@@ -48,7 +48,7 @@ INLINE bool hitEmissiveQuads(Ray *ray, Trace *trace, Scene *scene) {
 
     Primitive *primitive = scene->primitives;
     for (u32 i = 0; i < scene->settings.primitives; i++, primitive++) {
-        if (!(primitive->type == PrimitiveType_Quad && scene->materials[primitive->material_id].flags & EMISSION))
+        if (!(primitive->type == PrimitiveType_Quad && scene->materials[primitive->material_id].is & EMISSIVE))
             continue;
 
         convertPositionAndDirectionToObjectSpace(ray->origin, ray->direction, primitive, Ro, Rd);

@@ -15,13 +15,13 @@ INLINE bool hitTriangles(Ray *ray, RayHit *hit, RayHit *closest_hit, Triangle *t
             if (UV.x < 0 || UV.y < 0 || (UV.x + UV.y) > 1)
                 continue;
 
-            closest_hit->object_id = i;
+            closest_hit->normal = hit->normal;
             closest_hit->uv.x = UV.x;
             closest_hit->uv.y = UV.y;
+            closest_hit->object_id = i;
             closest_hit->from_behind = hit->from_behind;
             closest_hit->distance = hit->distance;
             closest_hit->position = hit->position;
-            closest_hit->normal = hit->normal;
 
             found_triangle = true;
 
@@ -32,14 +32,6 @@ INLINE bool hitTriangles(Ray *ray, RayHit *hit, RayHit *closest_hit, Triangle *t
 
     return found_triangle;
 }
-
-//INLINE bool hitTrianglesAny(Ray *ray, RayHit *hit, RayHit *closest_hit, Triangle *triangles, u32 triangle_count) {
-//    return hitTriangles(ray, hit, closest_hit, triangles, triangle_count, true);
-//}
-//INLINE bool hitTrianglesAll(Ray *ray, RayHit *hit, RayHit *closest_hit, Triangle *triangles, u32 triangle_count) {
-//    return hitTriangles(ray, hit, closest_hit, triangles, triangle_count, false);
-//}
-
 INLINE bool traceMesh(Trace *trace, Mesh *mesh, bool any_hit) {
     Ray *ray = &trace->local_space_ray;
     RayHit *closest_hit = &trace->closest_mesh_hit;
@@ -52,11 +44,8 @@ INLINE bool traceMesh(Trace *trace, Mesh *mesh, bool any_hit) {
     if (!hitAABB(&mesh->bvh.nodes->aabb, ray, closest_hit->distance, &left_distance))
         return false;
 
-    if (unlikely(mesh->bvh.nodes->primitive_count))
+    if (unlikely(mesh->bvh.nodes->child_count))
         return hitTriangles(ray, hit, closest_hit, mesh->triangles, mesh->triangle_count, any_hit);
-//        return any_hit ?
-//            hitTrianglesAny(ray, hit, closest_hit, mesh->triangles, mesh->triangle_count) :
-//            hitTrianglesAll(ray, hit, closest_hit, mesh->triangles, mesh->triangle_count);
 
     BVHNode *left_node = mesh->bvh.nodes + mesh->bvh.nodes->first_child_id;
     BVHNode *right_node, *tmp_node;
@@ -69,12 +58,8 @@ INLINE bool traceMesh(Trace *trace, Mesh *mesh, bool any_hit) {
         hit_right = hitAABB(&right_node->aabb, ray, closest_hit->distance, &right_distance);
 
         if (hit_left) {
-            if (unlikely(left_node->primitive_count)) {
-                if (hitTriangles(ray, hit, closest_hit, mesh->triangles + left_node->first_child_id,
-                                 left_node->primitive_count, any_hit)) {
-//                if (any_hit ?
-//                    hitTrianglesAny(ray, hit, closest_hit, mesh->triangles + left_node->first_child_id, left_node->primitive_count) :
-//                    hitTrianglesAll(ray, hit, closest_hit, mesh->triangles + left_node->first_child_id, left_node->primitive_count)) {
+            if (unlikely(left_node->child_count)) {
+                if (hitTriangles(ray, hit, closest_hit, mesh->triangles + left_node->first_child_id, left_node->child_count, any_hit)) {
                     closest_hit->object_id += left_node->first_child_id;
                     found = true;
                     if (any_hit)
@@ -87,12 +72,8 @@ INLINE bool traceMesh(Trace *trace, Mesh *mesh, bool any_hit) {
             left_node = null;
 
         if (hit_right) {
-            if (unlikely(right_node->primitive_count)) {
-                if (hitTriangles(ray, hit, closest_hit, mesh->triangles + right_node->first_child_id,
-                                 right_node->primitive_count, any_hit)) {
-//                if (any_hit ?
-//                    hitTrianglesAny(ray, hit, closest_hit, mesh->triangles + right_node->first_child_id, right_node->primitive_count) :
-//                    hitTrianglesAll(ray, hit, closest_hit, mesh->triangles + right_node->first_child_id, right_node->primitive_count)) {
+            if (unlikely(right_node->child_count)) {
+                if (hitTriangles(ray, hit, closest_hit, mesh->triangles + right_node->first_child_id, right_node->child_count, any_hit)) {
                     closest_hit->object_id += right_node->first_child_id;
                     found = true;
                     if (any_hit)
@@ -111,6 +92,8 @@ INLINE bool traceMesh(Trace *trace, Mesh *mesh, bool any_hit) {
                     right_node = tmp_node;
                 }
                 stack[stack_size++] = right_node->first_child_id;
+                if (stack_size == trace->mesh_stack_size)
+                    return false;
             }
             left_node = mesh->bvh.nodes + left_node->first_child_id;
         } else if (right_node) {
@@ -123,11 +106,3 @@ INLINE bool traceMesh(Trace *trace, Mesh *mesh, bool any_hit) {
 
     return found;
 }
-
-//INLINE bool traceMeshAny(Trace *trace, Mesh *mesh) {
-//    return traceMesh(trace, mesh, true);
-//}
-//
-//INLINE bool traceMeshAll(Trace *trace, Mesh *mesh) {
-//    return traceMesh(trace, mesh, false);
-//}

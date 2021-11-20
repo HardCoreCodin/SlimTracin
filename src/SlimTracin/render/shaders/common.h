@@ -74,6 +74,14 @@ INLINE f32 toneMapped(f32 LinearColor) {
            ) / (TONE_MAPPED__LINEAR_WHITE);
 }
 
+
+INLINE f32 gammaCorrected(f32 x) {
+    return (x <= 0.0031308f ? (x * 12.92f) : (1.055f * powf(x, 1.0f/2.4f) - 0.055f));
+}
+
+INLINE f32 gammaCorrectedApproximately(f32 x) {
+    return powf(x, 1.0f/2.2f);
+}
 INLINE f32 toneMappedBaked(f32 LinearColor) {
     // x = max(0, LinearColor-0.004)
     // GammaColor = (x*(6.2*x + 0.5))/(x*(6.2*x+1.7) + 0.06)
@@ -85,21 +93,8 @@ INLINE f32 toneMappedBaked(f32 LinearColor) {
     return (x2_times_sholder_strength + x*0.5f)/(x2_times_sholder_strength + x*1.7f + 0.06f);
 }
 
-INLINE f32 gammaCorrected(f32 x) {
-    return (x <= 0.0031308f ? (x * 12.92f) : (1.055f * powf(x, 1.0f/2.4f) - 0.055f));
-}
-
-INLINE f32 gammaCorrectedApproximately(f32 x) {
-    return powf(x, 1.0f/2.2f);
-}
-
 INLINE f32 invDotVec3(vec3 a, vec3 b) {
     return clampValue(-dotVec3(a, b));
-}
-
-INLINE f32 schlickFresnel(f32 n1, f32 n2, f32 NdotL) {
-    f32 R0 = (n1 - n2) / (n1 + n2);
-    return R0 + (1 - R0)*powf(1 - NdotL, 5);
 }
 
 INLINE vec3 reflectWithDot(vec3 V, vec3 N, f32 NdotV) {
@@ -230,4 +225,110 @@ INLINE vec3 getAreaLightVector(Primitive *primitive, vec3 P, vec3 *v) {
     out = addVec3(out, scaleVec3(crossVec3(u4n, u1n), angle41));
 
     return scaleVec3(out, 0.5f);
+}
+
+//#define sin2(cos2) (1.0f - (cos2))
+//#define tan2(cos2) (sin2((cos2)) / (cos2))
+//INLINE f32 smithShadowingMasking(f32 r2, f32 NdotL, f32 NdotO) {
+//    if (NdotL <= 0 ||
+//        NdotO <= 0)
+//        return 0;
+//
+//    f32 NLcos2 = NdotL * NdotL;
+//    f32 NOcos2 = NdotO * NdotO;
+//
+//    return 4.0f / (
+//            (1.0f + sqrtf(1.0f + r2*tan2(NLcos2))) *
+//            (1.0f + sqrtf(1.0f + r2*tan2(NOcos2)))
+//    );
+//}
+//INLINE f32 ggxDterm(f32 r2, f32 NdotH) {
+//    f32 cos2a = NdotH * NdotH;
+//    f32 tan2a = tan2(cos2a);
+//    f32 tan2a_plus_r2 = r2 + tan2a;
+//    return r2 / (pi * cos2a*cos2a * tan2a_plus_r2*tan2a_plus_r2);
+//}
+//INLINE f32 schlickFresnel(f32 R0, f32 HdotV) {
+//    // R0 = (n1 - n2) / (n1 + n2);
+//    return R0 + (1 - R0)*powf(1 - HdotV, 5);
+//}
+//INLINE f32 D_GGX(f32 NdotH, f32 roughness) {
+//    f32 a = NdotH * roughness;
+//    f32 k = roughness / (1.0f - NdotH * NdotH + a * a);
+//    return k * k * ONE_OVER_PI;
+//}
+
+//INLINE f32 ggxGeomSchlick(f32 roughness, f32 NdotV) {
+//    return NdotV / fmaxf((NdotV*(1.0f - roughness) + roughness), EPS);
+//}
+//f32 GeometrySchlickGGX(f32 NdotV, f32 k) {
+//    return NdotV / (NdotV * (1.0f - k) + k);
+//}
+//f32 GeometrySmith(vec3 N, vec3 V, vec3 L, f32 roughness) {
+//    f32 k = roughness + 1.0f;
+//    k *= k * 0.125f;
+//    f32 NdotV = max(dotVec3(N, V), 0.0);
+//    f32 NdotL = max(dotVec3(N, L), 0.0);
+//    f32 ggx1 = GeometrySchlickGGX(NdotV, roughness);
+//    f32 ggx2 = GeometrySchlickGGX(NdotL, roughness);
+//
+//    return ggx1 * ggx2;
+//}
+INLINE f32 ggxNDF(f32 roughness_squared, f32 NdotH) { // Trowbridge-Reitz:
+    f32 demon = NdotH * NdotH * (roughness_squared - 1.0f) + 1.0f;
+    return ONE_OVER_PI * roughness_squared / (demon * demon);
+}
+INLINE f32 ggxSmithSchlick(f32 NdotL, f32 NdotV, f32 roughness) {
+    f32 k = roughness * 0.5f; // Approximation from Karis (UE4)
+//    f32 k = roughness + 1.0f;
+//    k *= k * 0.125f;
+    f32 one_minus_k = 1.0f - k;
+    f32 denom = fast_mul_add(NdotV, one_minus_k, k);
+    f32 result = NdotV / fmaxf(denom, EPS);
+    denom = fast_mul_add(NdotL, one_minus_k, k);
+    return result * NdotL / fmaxf(denom, EPS);
+}
+INLINE vec3 ggxFresnelSchlick(vec3 reflectivity, f32 LdotH) {
+    return scaleAddVec3(oneMinusVec3(reflectivity), powf(1.0f - LdotH, 5.0f), reflectivity);
+}
+INLINE vec3 shadeClassic(vec3 diffuse, f32 NdotL, vec3 specular, f32 specular_factor, f32 exponent, f32 roughness) {
+    f32 shininess = 1.0f - roughness;
+    specular_factor = NdotL * powf(specular_factor,exponent * shininess) * shininess;
+    return scaleAddVec3(specular, specular_factor, diffuse);
+}
+INLINE vec3 shadePointOnSurface(Shaded *shaded, f32 NdotL) {
+    Material *M = shaded->material;
+    vec3 nothing = getVec3Of(0);
+    vec3 diffuse = scaleVec3(shaded->albedo, M->roughness * NdotL * ONE_OVER_PI);
+
+    if (M->brdf == BRDF_Lambert) return diffuse;
+    if (M->brdf == BRDF_Phong) {
+        f32 RdotL = DotVec3(shaded->reflected_direction, shaded->light_direction);
+        return RdotL ? shadeClassic(diffuse, NdotL, M->reflectivity, RdotL, 4.0f, M->roughness) : diffuse;
+    }
+
+    vec3 N = shaded->normal;
+    vec3 L = shaded->light_direction;
+    vec3 V = invertedVec3(shaded->viewing_direction);
+    vec3 H = normVec3(addVec3(L, V));
+    f32 NdotH = DotVec3(N, H);
+    if (M->brdf == BRDF_Blinn)
+        return NdotH ? shadeClassic(diffuse, NdotL, M->reflectivity, NdotH, 16.0f, M->roughness) : diffuse;
+
+    // Cook-Torrance BRDF:
+    vec3 F = nothing;
+    diffuse = scaleVec3(shaded->albedo, (1.0f - M->metallic) * NdotL * ONE_OVER_PI);
+    f32 LdotH = DotVec3(L, H);
+    if (LdotH != 1.0f) {
+        F = ggxFresnelSchlick(M->reflectivity, LdotH);
+        diffuse = mulVec3(diffuse, oneMinusVec3(F));
+    }
+    if (!M->roughness && NdotH == 1.0f) return diffuse;
+
+    f32 NdotV = DotVec3(N, V);
+    if (!NdotV) return diffuse;
+
+    f32 D = ggxNDF(M->roughness * M->roughness, NdotH);
+    f32 G = ggxSmithSchlick(NdotL, NdotV, M->roughness);
+    return scaleAddVec3(F, D * G / (4.0f * NdotV), diffuse);
 }

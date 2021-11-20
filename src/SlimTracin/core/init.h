@@ -20,9 +20,13 @@ Light *d_lights;
 AreaLight  *d_area_lights;
 Material   *d_materials;
 Primitive  *d_primitives;
+Texture    *d_textures;
+TextureMip *d_texture_mips;
+TexelQuad  *d_texel_quads;
 Mesh       *d_meshes;
 Triangle   *d_triangles;
 u32        *d_scene_bvh_leaf_ids;
+u32        *d_mesh_bvh_leaf_ids;
 BVHNode    *d_scene_bvh_nodes;
 BVHNode    *d_mesh_bvh_nodes;
 
@@ -40,12 +44,22 @@ void allocateDeviceScene(Scene *scene) {
 
         gpuErrchk(cudaMalloc(&d_meshes,    sizeof(Mesh)     * scene->settings.meshes))
         gpuErrchk(cudaMalloc(&d_triangles, sizeof(Triangle) * total_triangles))
-
+        gpuErrchk(cudaMalloc(&d_mesh_bvh_leaf_ids,    sizeof(u32) * total_triangles))
         gpuErrchk(cudaMalloc(&d_mesh_bvh_node_counts, sizeof(u32) * scene->settings.meshes))
         gpuErrchk(cudaMalloc(&d_mesh_triangle_counts, sizeof(u32) * scene->settings.meshes))
     }
 
+    if (scene->settings.textures) {
+        u32 total_texel_quads_count = 0;
+        for (u32 i = 0; i < scene->settings.textures; i++) {
+            total_texel_quads_count += scene->textures[i].mips[0].width * scene->textures[i].mips[0].height;
+        }
+        gpuErrchk(cudaMalloc(&d_texel_quads, sizeof(TexelQuad)  * total_texel_quads_count))
+    }
+
     gpuErrchk(cudaMalloc(&d_materials,          sizeof(Material) * scene->settings.materials))
+    gpuErrchk(cudaMalloc(&d_textures,           sizeof(Texture)  * scene->settings.textures))
+    gpuErrchk(cudaMalloc(&d_texture_mips,       sizeof(TextureMip) * scene->settings.textures))
     gpuErrchk(cudaMalloc(&d_scene_bvh_leaf_ids, sizeof(u32)      * scene->settings.primitives))
     gpuErrchk(cudaMalloc(&d_scene_bvh_nodes,    sizeof(BVHNode)  * scene->settings.primitives * 2))
     gpuErrchk(cudaMalloc(&d_mesh_bvh_nodes,     sizeof(BVHNode)  * total_triangles * 2))
@@ -54,7 +68,9 @@ void allocateDeviceScene(Scene *scene) {
 void uploadPrimitives(Scene *scene) {
     uploadN(scene->primitives, d_primitives, scene->settings.primitives)
 }
-
+void uploadMaterials(Scene *scene) {
+    uploadN( scene->materials, d_materials,scene->settings.materials)
+}
 void uploadLights(Scene *scene) {
     if (scene->settings.lights) uploadN( scene->lights, d_lights, scene->settings.lights)
     if (scene->settings.area_lights)  uploadN( scene->area_lights,  d_area_lights,  scene->settings.area_lights)
@@ -63,7 +79,18 @@ void uploadLights(Scene *scene) {
 void uploadScene(Scene *scene) {
     uploadLights(scene);
     uploadPrimitives(scene);
-    uploadN( scene->materials, d_materials,scene->settings.materials)
+    uploadMaterials(scene);
+    uploadN( scene->textures,  d_textures,scene->settings.textures)
+    u32 offset = 0;
+    u32 dim;
+    TextureMip *mip;
+    for (u32 i = 0; i < scene->settings.textures; i++) {
+        mip = &scene->textures[i].mips[0];
+        dim = mip->width * mip->height;
+        uploadNto( mip->texel_quads, d_texel_quads, dim, offset)
+        uploadNto( mip,  d_texture_mips, 1, i)
+        offset += dim;
+    }
 }
 
 void uploadSceneBVH(Scene *scene) {
@@ -72,12 +99,14 @@ void uploadSceneBVH(Scene *scene) {
 }
 
 void uploadMeshBVHs(Scene *scene) {
+    uploadN(scene->meshes, d_meshes, scene->settings.meshes);
     Mesh *mesh = scene->meshes;
     u32 nodes_offset = 0;
     u32 triangles_offset = 0;
     for (u32 i = 0; i < scene->settings.meshes; i++, mesh++) {
         uploadNto(mesh->bvh.nodes, d_mesh_bvh_nodes, mesh->bvh.node_count, nodes_offset)
         uploadNto(mesh->triangles, d_triangles,      mesh->triangle_count, triangles_offset)
+        uploadNto(mesh->bvh.leaf_ids, d_mesh_bvh_leaf_ids,      mesh->triangle_count, triangles_offset)
         nodes_offset        += mesh->bvh.node_count;
         triangles_offset    += mesh->triangle_count;
     }
@@ -91,6 +120,7 @@ void uploadMeshBVHs(Scene *scene) {
 
     void uploadLights(Scene *scene) {}
     void uploadPrimitives(Scene *scene) {}
+    void uploadMaterials(Scene *scene) {}
     void uploadScene(Scene *scene) {}
     void allocateDeviceScene(Scene *scene) {}
     void uploadMeshBVHs(Scene *scene) {}
@@ -184,11 +214,11 @@ void initTime(Time *time, GetTicks getTicks, u64 ticks_per_second) {
     time->timers.update.ticks_before = time->timers.update.ticks_of_last_report = getTicks();
 }
 
-void initPixelGrid(PixelGrid *pixel_grid, void* memory, u32 max_width, u32 max_height) {
+void initPixelGrid(PixelGrid *pixel_grid, void* memory, u16 max_width, u16 max_height) {
+    pixel_grid->QCAA = true;
     pixel_grid->pixels = (Pixel*)(memory);
     pixel_grid->float_pixels = (FloatPixel*)(pixel_grid->pixels + max_width * max_height);
-    pixel_grid->gamma_corrected_blending = true;
-    updateDimensions(&pixel_grid->dimensions, max_width, max_height);
+    updateDimensions(&pixel_grid->dimensions, max_width, max_height, pixel_grid->QCAA);
 }
 
 void fillPixelGrid(PixelGrid *pixel_grid, vec3 color, f32 opacity) {
@@ -366,8 +396,8 @@ void setDefaultViewportSettings(ViewportSettings *settings) {
     settings->use_GPU  = USE_GPU_BY_DEFAULT;
     settings->render_mode = RenderMode_Beauty;
     settings->antialias = true;
-    settings->depth_sort = true;
     settings->use_cube_NDC = false;
+    settings->show_wire_frame = false;
     settings->flip_z = false;
     settings->background_color = Color(Black);
     settings->background_opacity = 1.0f;
@@ -380,18 +410,16 @@ void setPreProjectionMatrix(Viewport *viewport) {
     f32 n = viewport->settings.near_clipping_plane_distance;
     f32 f = viewport->settings.far_clipping_plane_distance;
 
-    viewport->pre_projection_matrix.X.y = viewport->pre_projection_matrix.X.z = viewport->pre_projection_matrix.X.w = 0;
-    viewport->pre_projection_matrix.Y.x = viewport->pre_projection_matrix.Y.z = viewport->pre_projection_matrix.Y.w = 0;
-    viewport->pre_projection_matrix.W.x = viewport->pre_projection_matrix.W.y = viewport->pre_projection_matrix.W.w = 0;
-    viewport->pre_projection_matrix.Z.x = viewport->pre_projection_matrix.Z.y = 0;
-    viewport->pre_projection_matrix.X.x = viewport->camera->focal_length;
-    viewport->pre_projection_matrix.Y.y = viewport->camera->focal_length * viewport->frame_buffer->dimensions.width_over_height;
-    viewport->pre_projection_matrix.Z.z = viewport->pre_projection_matrix.W.z = 1.0f / (f - n);
-    viewport->pre_projection_matrix.Z.z *= viewport->settings.use_cube_NDC ? (f + n) : f;
-    viewport->pre_projection_matrix.W.z *= viewport->settings.use_cube_NDC ? (-2 * f * n) : (-n * f);
-    viewport->pre_projection_matrix.Z.w = 1.0f;
-
-    viewport->pre_projection_matrix_inverted = invMat4(viewport->pre_projection_matrix);
+    viewport->projection_matrix.X.y = viewport->projection_matrix.X.z = viewport->projection_matrix.X.w = 0;
+    viewport->projection_matrix.Y.x = viewport->projection_matrix.Y.z = viewport->projection_matrix.Y.w = 0;
+    viewport->projection_matrix.W.x = viewport->projection_matrix.W.y = viewport->projection_matrix.W.w = 0;
+    viewport->projection_matrix.Z.x = viewport->projection_matrix.Z.y = 0;
+    viewport->projection_matrix.X.x = viewport->camera->focal_length;
+    viewport->projection_matrix.Y.y = viewport->camera->focal_length * viewport->frame_buffer->dimensions.width_over_height;
+    viewport->projection_matrix.Z.z = viewport->projection_matrix.W.z = 1.0f / (f - n);
+    viewport->projection_matrix.Z.z *= viewport->settings.use_cube_NDC ? (f + n) : f;
+    viewport->projection_matrix.W.z *= viewport->settings.use_cube_NDC ? (-2 * f * n) : (-n * f);
+    viewport->projection_matrix.Z.w = 1.0f;
 }
 
 void initViewport(Viewport *viewport,
@@ -437,15 +465,33 @@ void initPrimitive(Primitive *primitive) {
     primitive->rotation.amount = 1;
 }
 
+void initMaterial(Material *material) {
+    material->reflectivity = getVec3Of(1);
+    material->emission     = getVec3Of(0);
+    material->albedo       = getVec3Of(1);
+    material->metallic   = 0;
+    material->roughness  = 1;
+    material->n1_over_n2 = 1;
+    material->n2_over_n1 = 1;
+    material->brdf = BRDF_Lambert;
+    material->texture_count = 0;
+    material->is =  0;
+    material->use = NORMAL_MAP | ALBEDO_MAP;
+    for (u8 i = 0; i < 16; i++) material->texture_ids[i] = 0;
+}
+
 void initBVHNode(BVHNode *node) {
     node->aabb.min.x = node->aabb.min.y = node->aabb.min.z = 0;
     node->aabb.max.x = node->aabb.max.y = node->aabb.max.z = 0;
     node->first_child_id = 0;
-    node->primitive_count = 0;
+    node->child_count = 0;
+    node->depth = 0;
 }
 
 void initBVH(BVH *bvh, u32 leaf_count, Memory *memory) {
-    bvh->nodes    = (BVHNode*)allocateMemory(memory, sizeof(BVHNode) * leaf_count * 2);
+    bvh->height = 0;
+    bvh->node_count = leaf_count * 2;
+    bvh->nodes    = (BVHNode*)allocateMemory(memory, sizeof(BVHNode) * bvh->node_count);
     bvh->leaf_ids = (u32*    )allocateMemory(memory, sizeof(u32) * leaf_count);
 }
 
@@ -457,18 +503,21 @@ void initTrace(Trace *trace, Scene *scene, Memory *memory) {
 //    trace->quad_light_hits = scene->settings.area_lights ?
 //            allocateMemory(memory, sizeof(RayHit) * scene->settings.area_lights) : null;
 
+    trace->mesh_stack_size = 0;
+    trace->mesh_stack = null;
     if (scene->settings.meshes) {
         trace->closest_mesh_hit.object_type = PrimitiveType_Mesh;
 
         u32 max_depth = 0;
         for (u32 m = 0; m < scene->settings.meshes; m++)
-            if (scene->meshes[m].bvh.depth > max_depth)
-                max_depth = scene->meshes[m].bvh.depth;
-        trace->mesh_stack = (u32*)allocateMemory(memory, sizeof(u32) * (max_depth + 2));
-    } else
-        trace->mesh_stack = null;
+            if (scene->meshes[m].bvh.height > max_depth)
+                max_depth = scene->meshes[m].bvh.height;
+        trace->mesh_stack_size = (u8)(max_depth + 2);
+        trace->mesh_stack = (u32*)allocateMemory(memory, sizeof(u32) * trace->mesh_stack_size);
+    }
 
-    trace->scene_stack = (u32*)allocateMemory(memory, sizeof(u32) * scene->settings.primitives);
+    trace->scene_stack_size = (u8)scene->settings.primitives;
+    trace->scene_stack = (u32*)allocateMemory(memory, sizeof(u32) * trace->scene_stack_size);
     trace->depth = 2;
 }
 
@@ -486,9 +535,10 @@ void setViewportProjectionPlane(Viewport *viewport) {
     ProjectionPlane *projection_plane = &viewport->projection_plane;
     Dimensions *dimensions = &viewport->frame_buffer->dimensions;
 
-    projection_plane->start = scaleVec3(*camera->transform.forward_direction, (f32)dimensions->width * camera->focal_length);
-    projection_plane->right = scaleVec3(*camera->transform.right_direction, 1.0f - (f32)dimensions->width);
-    projection_plane->down  = scaleVec3(*camera->transform.up_direction, (f32)dimensions->height - 2);
+    f32 offset = viewport->frame_buffer->QCAA ? 0.0f : 1.0f;
+    projection_plane->start = scaleVec3(*camera->transform.forward_direction, dimensions->f_height * camera->focal_length);
+    projection_plane->right = scaleVec3(*camera->transform.right_direction, offset - (f32)dimensions->width);
+    projection_plane->down  = scaleVec3(*camera->transform.up_direction, dimensions->f_height - offset);
     projection_plane->start = addVec3(projection_plane->start, projection_plane->right);
     projection_plane->start = addVec3(projection_plane->start, projection_plane->down);
 

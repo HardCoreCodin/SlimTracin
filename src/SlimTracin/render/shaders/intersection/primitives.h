@@ -81,11 +81,22 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
     if (found) {
         if (closest_hit->object_type == PrimitiveType_Mesh) {
             Mesh *mesh = scene->meshes + hit_primitive->id;
-            if (mesh->normals_count)
-                closest_hit->normal = normVec3(addVec3(addVec3(
-                scaleVec3(mesh->triangles[closest_hit->object_id].vertex_normals[2], closest_hit->uv.x),
-                scaleVec3(mesh->triangles[closest_hit->object_id].vertex_normals[1], closest_hit->uv.y)),
-                scaleVec3(mesh->triangles[closest_hit->object_id].vertex_normals[0],1.0f - (closest_hit->uv.x + closest_hit->uv.y))));
+            Triangle *triangle = mesh->triangles + closest_hit->object_id;
+            if (mesh->normals_count > 0 || mesh->uvs_count > 0) {
+                f32 u = closest_hit->uv.u;
+                f32 v = closest_hit->uv.v;
+                f32 w = 1 - u - v;
+                if (mesh->uvs_count) {
+                    closest_hit->uv.x = fast_mul_add(triangle->uvs[2].x, u, fast_mul_add(triangle->uvs[1].u, v, triangle->uvs[0].u * w));
+                    closest_hit->uv.y = fast_mul_add(triangle->uvs[2].y, u, fast_mul_add(triangle->uvs[1].v, v, triangle->uvs[0].v * w));
+                }
+                if (mesh->normals_count) {
+                    closest_hit->normal.x = fast_mul_add(triangle->vertex_normals[2].x, u, fast_mul_add(triangle->vertex_normals[1].x, v, triangle->vertex_normals[0].x * w));
+                    closest_hit->normal.y = fast_mul_add(triangle->vertex_normals[2].y, u, fast_mul_add(triangle->vertex_normals[1].y, v, triangle->vertex_normals[0].y * w));
+                    closest_hit->normal.z = fast_mul_add(triangle->vertex_normals[2].z, u, fast_mul_add(triangle->vertex_normals[1].z, v, triangle->vertex_normals[0].z * w));
+                    closest_hit->normal = normVec3(closest_hit->normal);
+                }
+            }
         }
         closest_hit->object_id = hit_primitive_id;
         closest_hit->normal = normVec3(convertDirectionToWorldSpace(closest_hit->normal, hit_primitive));

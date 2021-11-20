@@ -3,24 +3,8 @@
 #include "../trace.h"
 #include "../common.h"
 #include "../intersection/sphere.h"
+#include "../../../scene/texture.h"
 #include "./lights.h"
-
-INLINE vec3 shadePointOnSurface(Shaded *shaded, f32 NdotL) {
-    if (shaded->has.specular) {
-        vec3 half_vector, color;
-        if (shaded->uses.blinn) {
-            half_vector = normVec3(subVec3(shaded->light_direction, shaded->viewing_direction));
-            color = getVec3Of(powf(DotVec3(shaded->normal, half_vector), 16.0f * shaded->material->shininess));
-        } else
-            color = getVec3Of(powf(DotVec3(shaded->reflected_direction, shaded->light_direction), 4.0f * shaded->material->shininess));
-
-        if (shaded->has.diffuse)
-            return scaleAddVec3(shaded->material->diffuse, clampValue(NdotL), color);
-        else
-            return color;
-    } else
-        return scaleVec3(shaded->material->diffuse, clampValue(NdotL));
-}
 
 INLINE vec3 shadeFromLights(Shaded *shaded, Ray *ray, Trace *trace, Scene *scene, vec3 color) {
     RayHit *hit = &trace->closest_hit;
@@ -61,7 +45,7 @@ INLINE bool shadeFromEmissiveQuads(Shaded *shaded, Ray *ray, Trace *trace, Scene
 
     for (u32 i = 0; i < scene->settings.primitives; i++, quad++) {
         emissive_material = scene->materials + quad->material_id;
-        if (quad->type != PrimitiveType_Quad || !(emissive_material->flags & EMISSION))
+        if (quad->type != PrimitiveType_Quad || !(emissive_material->is & EMISSIVE))
             continue;
 
         convertPositionAndDirectionToObjectSpace(shaded->viewing_origin, shaded->viewing_direction, quad, Ro, Rd);
@@ -128,44 +112,63 @@ INLINE bool shadeFromEmissiveQuads(Shaded *shaded, Ray *ray, Trace *trace, Scene
                 if (d < shaded_light)
                     shaded_light = d;
             }
-            if (shaded_light > 0)
-                *color = mulAddVec3(shadePointOnSurface(shaded, dotVec3(shaded->normal, shaded->light_direction)),
-                                   scaleVec3(emissive_material->emission, emission_intensity * shaded_light),
-                                   *color);
+            if (shaded_light > 0) {
+                f32 NdotL = DotVec3(shaded->normal, shaded->light_direction);
+                if (NdotL)
+                    *color = mulAddVec3(shadePointOnSurface(shaded, NdotL),
+                                        scaleVec3(emissive_material->emission, emission_intensity * shaded_light),
+                                        *color);
+            }
         }
     }
 
-    if (found) {
-//        quad = scene->primitives + trace->closest_hit.object_id;
-//        trace->closest_hit.normal = normVec3(convertDirectionToWorldSpace(trace->closest_hit.normal, quad));
+    if (found)
         trace->closest_hit.distance = sqrtf(trace->closest_hit.distance_squared);
-    }
 
     return found;
 }
 
+INLINE vec3 sampleNormal(TextureMip *mip, vec2 uv) {
+    vec3 normal = sampleTextureMip(mip, uv).v3;
+    f32 y = normal.z;
+    normal.z = normal.y;
+    normal.y = y;
+    return normVec3(scaleAddVec3(normal, 2.0f, getVec3Of(-1.0f)));
+}
+INLINE quat getNormalRotation(vec3 normal) {
+    quat q;
+    q.axis.x = normal.z;
+    q.axis.y = 0;
+    q.axis.z = normal.x;
+    q.amount = normal.y;
+    return normQuat(q);
+}
 INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene, bool *lights_shaded) {
     RayHit *hit = &trace->closest_hit;
     vec3 color = getVec3Of(0);
-    if (scene->materials[trace->closest_hit.material_id].flags & EMISSION) {
-        if (!hit->from_behind)
-            color = scene->materials[trace->closest_hit.material_id].emission;
-        return color;
-    }
+    Material *M = scene->materials  + hit->material_id;
+    if (M->is & EMISSIVE) return hit->from_behind ? color : M->emission;
 
     Shaded shaded;
     shaded.viewing_origin    = ray->origin;
     shaded.viewing_direction = ray->direction;
     shaded.primitive = scene->primitives + hit->object_id;
-    shaded.material  = scene->materials  + hit->material_id;
-    decodeMaterialSpec(shaded.material->flags, &shaded.has, &shaded.uses);
+    shaded.material = M;
+    shaded.albedo = shaded.material->albedo;
+    if (M->use && M->texture_count) {
+        if (M->use & ALBEDO_MAP) shaded.albedo = sampleTextureMip(scene->textures[M->texture_ids[0]].mips, hit->uv).v3;
+        if (M->use & NORMAL_MAP && M->texture_count > 1) {
+            quat rotation = getNormalRotation(sampleNormal(scene->textures[M->texture_ids[1]].mips, hit->uv));
+            hit->normal = mulVec3Quat(hit->normal, rotation);
+        }
+    }
 
     f32 NdotRd, ior, max_distance = hit->distance;
 
     bool scene_has_emissive_quads = false;
     for (u32 i = 0; i < scene->settings.primitives; i++)
         if (scene->primitives[i].type == PrimitiveType_Quad &&
-            scene->materials[scene->primitives[i].material_id].flags & EMISSION) {
+            scene->materials[scene->primitives[i].material_id].is & EMISSIVE) {
             scene_has_emissive_quads = true;
             break;
         }
@@ -177,8 +180,8 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene, bool *lights_shad
         shaded.normal = hit->from_behind ? invertedVec3(hit->normal) : hit->normal;
         ior = hit->from_behind ? shaded.material->n2_over_n1 : shaded.material->n1_over_n2;
 
-        bool is_ref = shaded.has.reflection || shaded.has.refraction;
-        if (is_ref || shaded.uses.phong) {
+        bool is_ref = (M->is & REFLECTIVE) || (M->is & REFRACTIVE);
+        if (is_ref || M->brdf == BRDF_Phong) {
             NdotRd = -invDotVec3(shaded.normal, shaded.viewing_direction);
             shaded.reflected_direction = reflectWithDot(shaded.viewing_direction, shaded.normal, NdotRd);
         }
@@ -204,7 +207,7 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene, bool *lights_shad
             *lights_shaded = true;
 
         if (is_ref && --depth) {
-            if (shaded.has.reflection) {
+            if (M->is & REFLECTIVE) {
                 ray->direction = shaded.reflected_direction;
             } else {
                 ray->direction = refract(shaded.viewing_direction, shaded.normal, ior, NdotRd);
@@ -215,14 +218,21 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene, bool *lights_shad
             }
             if (traceRay(ray, trace, scene)) {
                 shaded.primitive = scene->primitives + hit->object_id;
-                shaded.material = scene->materials + hit->material_id;
-                decodeMaterialSpec(shaded.material->flags, &shaded.has, &shaded.uses);
+                shaded.material = M = scene->materials + hit->material_id;
+                shaded.albedo = M->albedo;
+                if (M->use && M->texture_count) {
+                    if (M->use & ALBEDO_MAP) shaded.albedo = sampleTextureMip(scene->textures[M->texture_ids[0]].mips, hit->uv).v3;
+                    if (M->use & NORMAL_MAP && M->texture_count > 1) {
+                        quat rotation = getNormalRotation(sampleNormal(scene->textures[M->texture_ids[1]].mips, hit->uv));
+                        hit->normal = mulVec3Quat(hit->normal, rotation);
+                    }
+                }
 
-                if (hit->object_type == PrimitiveType_Quad && shaded.has.emission) {
-                    color = hit->from_behind ? getVec3Of(0) : shaded.material->emission;
+                if (hit->object_type == PrimitiveType_Quad && M->is & EMISSIVE) {
+                    color = hit->from_behind ? getVec3Of(0) : M->emission;
                     break;
                 }
-                throughput = mulVec3(throughput, shaded.material->specular);
+                if (M->brdf != BRDF_CookTorrance) throughput = mulVec3(throughput, M->reflectivity);
 
                 shaded.viewing_origin    = ray->origin;
                 shaded.viewing_direction = ray->direction;

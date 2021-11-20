@@ -13,6 +13,8 @@
 #include "./shaders/closest_hit/surface.h"
 #include "./shaders/closest_hit/lights.h"
 #include "./SSB.h"
+//#include "rasterizer.h"
+#include "../viewport/viewport.h"
 
 void setBoxPrimitiveFromAABB(Primitive *box_primitive, AABB *aabb) {
     box_primitive->rotation = getIdentityQuaternion();
@@ -34,9 +36,11 @@ void drawMeshAccelerationStructure(Viewport *viewport, Mesh *mesh, Primitive *pr
     vec3 color;
     u32 node_count = mesh->bvh.node_count;
     for (u32 node_id = 0; node_id < node_count; node_id++, node++) {
-        color = Color(node->primitive_count ? Magenta : (node_id ? Green : Blue));
+        if (node->depth > 5) continue;
+        color = Color(node->child_count ? Magenta : (node_id ? Green : Blue));
         setBoxPrimitiveFromPrimitiveAndAABB(box_primitive, primitive, &node->aabb);
-        drawBox(viewport, color, 1, &viewport->default_box, box_primitive, BOX__ALL_SIDES, 1);
+
+        drawBox(&viewport->default_box, BOX__ALL_SIDES, box_primitive, color, 0.125f, 0, viewport);
     }
 }
 
@@ -49,9 +53,9 @@ void drawBVH(Scene *scene, Viewport *viewport) {
     u32 *primitive_id;
 
     for (u8 node_id = 0; node_id < scene->bvh.node_count; node_id++, node++) {
-        if (node->primitive_count) {
+        if (node->child_count) {
             primitive_id = scene->bvh.leaf_ids + node->first_child_id;
-            for (u32 i = 0; i < node->primitive_count; i++, primitive_id++) {
+            for (u32 i = 0; i < node->child_count; i++, primitive_id++) {
                 primitive = &scene->primitives[*primitive_id];
                 switch (primitive->type) {
                     case PrimitiveType_Box        : color = Cyan;    break;
@@ -64,14 +68,14 @@ void drawBVH(Scene *scene, Viewport *viewport) {
                     default:
                         continue;
                 }
-                drawBox(viewport, Color(color), 1, &viewport->default_box, primitive, BOX__ALL_SIDES, 1);
+                drawBox(&viewport->default_box, BOX__ALL_SIDES, primitive, Color(color), 1, 1, viewport);
             }
             color = White;
         } else
             color = node_id ? Grey : Blue;
 
         setBoxPrimitiveFromAABB(&box_primitive, &node->aabb);
-        drawBox(viewport, Color(color), 1, &viewport->default_box, &box_primitive, BOX__ALL_SIDES, 1);
+        drawBox(&viewport->default_box, BOX__ALL_SIDES, &box_primitive, Color(color), 1, 1, viewport);
     }
 }
 
@@ -81,6 +85,7 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
     vec3 color = getVec3Of(0);
 
     bool lights_shaded = false;
+//    bool hit_found = traceRay(ray, trace, scene);
     bool hit_found = hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y);
     f32 closest_distance = hit_found ? trace->closest_hit.distance : INFINITY;
     f32 z = INFINITY;
@@ -90,13 +95,27 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
         switch (mode) {
             case RenderMode_Beauty: color = shadeSurface(ray, trace, scene, &lights_shaded); break;
             case RenderMode_Depth  : color = shadeDepth(trace->closest_hit.distance); break;
-            case RenderMode_Normals: color = shadeDirection(trace->closest_hit.normal); break;
+            case RenderMode_Normals: {
+                    Material *M = scene->materials  + trace->closest_hit.material_id;
+                    if (M->texture_count > 1 && M->use & NORMAL_MAP) {
+                        quat rotation = getNormalRotation(sampleNormal(scene->textures[M->texture_ids[1]].mips, trace->closest_hit.uv));
+                        trace->closest_hit.normal = mulVec3Quat(trace->closest_hit.normal, rotation);
+                    }
+
+                    color = shadeDirection(trace->closest_hit.normal);
+
+                }
+                break;
             case RenderMode_UVs    : color = shadeUV(trace->closest_hit.uv);            break;
         }
     }
 
-    if (mode == RenderMode_Beauty && scene->lights && !lights_shaded)
-        hit_found |= shadeLights(scene->lights, scene->settings.lights, Ro, Rd, closest_distance, &trace->sphere_hit, &color);
+    if (mode == RenderMode_Beauty && scene->lights && !lights_shaded) {
+        if (shadeLights(scene->lights, scene->settings.lights, Ro, Rd, closest_distance, &trace->sphere_hit, &color)) {
+            hit_found = true;
+            z = trace->sphere_hit.closest_hit_distance;
+        }
+    }
 
     if (hit_found) {
         if (mode == RenderMode_Beauty) {
@@ -104,11 +123,9 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
             color.y = toneMappedBaked(color.y);
             color.z = toneMappedBaked(color.z);
         }
-        color.x *= FLOAT_TO_COLOR_COMPONENT;
-        color.y *= FLOAT_TO_COLOR_COMPONENT;
-        color.z *= FLOAT_TO_COLOR_COMPONENT;
-
-        setPixel(pixel, color, 1, z, true);
+        color = scaleVec3(color, FLOAT_TO_COLOR_COMPONENT);
+        color = mulVec3(color, color);
+        setPixel(pixel, color, 1, z);
     }
 }
 
@@ -162,8 +179,12 @@ __global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode,
                          Light *lights,
                          AreaLight  *area_lights,
                          Material   *materials,
+                         Texture *textures,
+                         TextureMip *texture_mips,
+                         TexelQuad *texel_quads,
                          Primitive  *primitives,
 
+                         u32       *mesh_bvh_leaf_ids,
                          const u32 *mesh_bvh_node_counts,
                          const u32 *mesh_triangle_counts
 ) {
@@ -186,6 +207,7 @@ __global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode,
     scene.lights = lights;
     scene.area_lights  = area_lights;
     scene.materials    = materials;
+    scene.textures     = textures;
     scene.primitives   = primitives;
     scene.meshes       = meshes;
     scene.bvh.nodes    = scene_bvh_nodes;
@@ -200,13 +222,21 @@ __global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode,
     u32 triangles_offset = 0;
     for (u32 m = 0; m < scene.settings.meshes; m++, mesh++) {
         mesh->bvh.node_count = mesh_bvh_node_counts[m];
-        mesh->triangle_count = mesh_triangle_counts[m];
-        mesh->normals_count  = mesh_triangle_counts[m];
         mesh->triangles      = mesh_triangles + triangles_offset;
+        mesh->bvh.leaf_ids   = mesh_bvh_leaf_ids + triangles_offset;
         mesh->bvh.nodes      = mesh_bvh_nodes + nodes_offset;
 
         nodes_offset        += mesh->bvh.node_count;
         triangles_offset    += mesh->triangle_count;
+    }
+
+    Texture *texture = textures;
+    TextureMip *mip = texture_mips;
+    TexelQuad *quads = texel_quads;
+    for (u32 t = 0; t < scene.settings.textures; t++, texture++, mip++) {
+        texture->mips = mip;
+        mip->texel_quads = quads;
+        quads += mip->width * mip->height;
     }
 
     ray.direction_reciprocal = oneOverVec3(ray.direction);
@@ -218,8 +248,8 @@ __global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode,
 void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
     Dimensions *dim = &viewport->frame_buffer->dimensions;
     u32 pixel_count = dim->width_times_height;
-    u16 threads = 256;
-    u16 blocks  = pixel_count / threads;
+    u32 threads = 256;
+    u32 blocks  = pixel_count / threads;
     if (pixel_count < threads) {
         threads = pixel_count;
         blocks = 1;
@@ -245,8 +275,12 @@ void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
             d_lights,
             d_area_lights,
             d_materials,
+            d_textures,
+            d_texture_mips,
+            d_texel_quads,
             d_primitives,
 
+            d_mesh_bvh_leaf_ids,
             d_mesh_bvh_node_counts,
             d_mesh_triangle_counts);
 
@@ -255,27 +289,15 @@ void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
 }
 #endif
 
-void renderScene(Scene *scene, Viewport *viewport, Controls *controls) {
-    if (viewport->settings.background_fill)
-        fillPixelGrid(viewport->frame_buffer,
-                      viewport->settings.background_color,
-                      viewport->settings.background_opacity);
-
-    setViewportProjectionPlane(viewport);
-    setPreProjectionMatrix(viewport);
-
+void renderScene(Scene *scene, Viewport *viewport) {
+//    if (app->viewport.settings.rasterize)
+//        rasterize(scene, viewport, &app->rasterizer);
+//    else {
 #ifdef __CUDACC__
     if (viewport->settings.use_GPU) renderSceneOnGPU(scene, viewport);
     else                            renderSceneOnCPU(scene, viewport);
 #else
-    renderSceneOnCPU(scene, viewport);
+        renderSceneOnCPU(scene, viewport);
 #endif
-
-    if (viewport->settings.show_BVH      ) drawBVH(      scene, viewport);
-    if (viewport->settings.show_SSB      ) drawSSB(      scene, viewport);
-    if (viewport->settings.show_selection) drawSelection(scene, viewport, controls);
-
-    preparePixelGridForDisplay(viewport->frame_buffer);
-
-    if (viewport->settings.show_hud) drawHUD(viewport->frame_buffer, &viewport->hud);
+//    }
 }

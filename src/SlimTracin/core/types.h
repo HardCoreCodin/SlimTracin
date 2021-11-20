@@ -53,6 +53,26 @@ typedef struct Time {
     GetTicks getTicks;
 } Time;
 
+typedef struct TexelQuadComponent {
+    u8 TL, TR, BL, BR;
+} TexelQuadComponent;
+
+typedef struct TexelQuad {
+    TexelQuadComponent R, G, B;
+} TexelQuad;
+
+typedef struct TextureMip {
+    u16 width, height;
+    TexelQuad *texel_quads;
+} TextureMip;
+
+typedef struct Texture {
+    u16 width, height;
+    u8 mip_count;
+    bool wrap, mipmap;
+    TextureMip *mips;
+} Texture;
+
 typedef enum BoxSide {
     NoSide = 0,
     Top    = 1,
@@ -154,7 +174,7 @@ typedef struct Camera {
 } Camera;
 
 typedef struct SphereHit {
-    f32 b, c, t_near, t_far, furthest;
+    f32 b, c, t_near, t_far, furthest, closest_hit_distance, closest_hit_density;
 } SphereHit;
 
 typedef struct Ray {
@@ -176,18 +196,19 @@ typedef struct Trace {
     Ray local_space_ray;
     u32 *scene_stack,
         *mesh_stack;
-    u8 depth;
+    u8 depth, mesh_stack_size, scene_stack_size;
 } Trace;
 
 // BVH:
 // ====
 typedef struct BVHNode {
     AABB aabb;
-    u32 first_child_id, primitive_count;
+    u32 first_child_id;
+    u16 child_count, depth;
 } BVHNode;
 
 typedef struct BVH {
-    u32 node_count, depth, *leaf_ids;
+    u32 node_count, height, *leaf_ids;
     BVHNode *nodes;
 } BVH;
 
@@ -229,7 +250,7 @@ typedef struct ViewportSettings {
     HUDLine *hud_lines;
     enum ColorID hud_default_color;
     enum RenderMode render_mode;
-    bool show_hud, depth_sort, antialias, use_cube_NDC, flip_z, show_BVH, show_SSB, show_selection, background_fill, use_GPU;
+    bool show_hud, show_wire_frame, antialias, use_cube_NDC, flip_z, show_BVH, show_SSB, show_selection, background_fill, use_GPU;
 } ViewportSettings;
 
 typedef struct Viewport {
@@ -242,53 +263,31 @@ typedef struct Viewport {
     Trace trace;
     Box default_box;
     vec2i position;
-    mat4 pre_projection_matrix,
-         pre_projection_matrix_inverted;
+    mat4 projection_matrix;
 } Viewport;
 
-// Materials:
-// =========
-enum BRDFType {
-    phong,
-    ggx
-};
-
-typedef struct Material {
-    vec3 ambient, diffuse, specular, emission;
-    f32 shininess, roughness, n1_over_n2, n2_over_n1;
-    enum BRDFType brdf;
-    u8 flags;
-} Material;
-
-typedef struct MaterialHas {
-    bool diffuse,
-         specular,
-         emission,
-         reflection,
-         refraction;
-} MaterialHas;
-
-typedef struct MaterialUses {
-    bool blinn, phong;
-} MaterialUses;
-
-INLINE void decodeMaterialSpec(u8 flags, MaterialHas *has, MaterialUses *uses) {
-    uses->phong = flags & (u8)PHONG;
-    uses->blinn = flags & (u8)BLINN;
-    has->emission = flags & (u8)EMISSION;
-    has->diffuse = flags & (u8)LAMBERT;
-    has->specular = uses->phong || uses->blinn;
-    has->reflection = flags & (u8)REFLECTION;
-    has->refraction = flags & (u8)REFRACTION;
-}
-
-typedef struct Shaded {
-    Primitive *primitive;
-    Material *material;
-    MaterialHas has;
-    MaterialUses uses;
-    vec3 position, normal, viewing_direction, viewing_origin, reflected_direction, light_direction, emissive_quad_vertices[4];
-} Shaded;
+// Mesh:
+// =====
+typedef struct Triangle {
+    mat3 world_to_tangent;
+    vec3 position, normal;
+    vec3 vertex_normals[3];
+    vec2 uvs[3];
+} Triangle;
+typedef struct EdgeVertexIndices { u32 from, to; } EdgeVertexIndices;
+typedef union TriangleVertexIndices { u32 ids[3]; struct { u32 v1, v2, v3; }; } TriangleVertexIndices;
+typedef struct Mesh {
+    AABB aabb;
+    u32 triangle_count, vertex_count, edge_count, normals_count, uvs_count;
+    vec3 *vertex_positions, *vertex_normals;
+    vec2 *vertex_uvs;
+    TriangleVertexIndices *vertex_position_indices;
+    TriangleVertexIndices *vertex_normal_indices;
+    TriangleVertexIndices *vertex_uvs_indices;
+    EdgeVertexIndices     *edge_vertex_indices;
+    Triangle *triangles;
+    BVH bvh;
+} Mesh;
 
 // Lights:
 // ======
@@ -307,27 +306,27 @@ typedef struct AreaLight {
     f32 A, u_length, v_length;
 } AreaLight;
 
-// Mesh:
-// =====
-typedef struct Triangle {
-    mat3 world_to_tangent;
-    vec3 position, normal;
-    vec3 vertex_normals[3];
-} Triangle;
-typedef struct EdgeVertexIndices { u32 from, to; } EdgeVertexIndices;
-typedef struct TriangleVertexIndices { u32 ids[3]; } TriangleVertexIndices;
-typedef struct Mesh {
-    AABB aabb;
-    u32 triangle_count, vertex_count, edge_count, normals_count, uvs_count;
-    vec3 *vertex_positions, *vertex_normals;
-    vec2 *vertex_uvs;
-    TriangleVertexIndices *vertex_position_indices;
-    TriangleVertexIndices *vertex_normal_indices;
-    TriangleVertexIndices *vertex_uvs_indices;
-    EdgeVertexIndices *edge_vertex_indices;
-    Triangle *triangles;
-    BVH bvh;
-} Mesh;
+// Materials:
+// =========
+enum BRDF {
+    BRDF_Lambert,
+    BRDF_Phong,
+    BRDF_Blinn,
+    BRDF_CookTorrance
+};
+
+typedef struct Material {
+    vec3 albedo, reflectivity, emission;
+    f32 metallic, roughness, n1_over_n2, n2_over_n1;
+    u8 is, use, texture_count, texture_ids[16];
+    enum BRDF brdf;
+} Material;
+
+typedef struct Shaded {
+    Primitive *primitive;
+    Material *material;
+    vec3 albedo, position, normal, viewing_direction, viewing_origin, reflected_direction, light_direction, emissive_quad_vertices[4];
+} Shaded;
 
 typedef struct Selection {
     quat object_rotation;
@@ -346,8 +345,8 @@ typedef struct Selection {
 } Selection;
 
 typedef struct SceneSettings {
-    u32 cameras, primitives, meshes, materials, lights, area_lights;
-    String file, *mesh_files;
+    u32 cameras, primitives, meshes, materials, lights, area_lights, textures;
+    String file, *mesh_files, *texture_files;
 } SceneSettings;
 
 typedef struct Scene {
@@ -355,6 +354,7 @@ typedef struct Scene {
     Selection *selection;
     BVH bvh;
 
+    Texture *textures;
     Camera *cameras;
     AmbientLight ambient_light;
     Light *lights;
@@ -414,3 +414,38 @@ typedef struct Defaults {
     u64 additional_memory_size;
     Settings settings;
 } Defaults;
+
+INLINE void setPixel(FloatPixel *pixel, vec3 color, f32 opacity, f64 depth) {
+    FloatPixel new_pixel;
+    new_pixel.opacity = opacity;
+    new_pixel.color = color;
+    new_pixel.depth = depth;
+
+    if (!(opacity == 1 && depth == 0)) {
+        FloatPixel background, foreground, old_pixel = *pixel;
+
+        if (old_pixel.depth < new_pixel.depth) {
+            background = new_pixel;
+            foreground = old_pixel;
+        } else {
+            background = old_pixel;
+            foreground = new_pixel;
+        }
+        if (foreground.opacity != 1) {
+            f32 one_minus_foreground_opacity = 1.0f - foreground.opacity;
+            opacity = foreground.opacity + background.opacity * one_minus_foreground_opacity;
+            f32 one_over_opacity = opacity ? 1.0f / opacity : 1;
+            f32 background_factor = background.opacity * one_over_opacity * one_minus_foreground_opacity;
+            f32 foreground_factor = foreground.opacity * one_over_opacity;
+
+            pixel->color.r = fast_mul_add(foreground.color.r, foreground_factor, background.color.r * background_factor);
+            pixel->color.g = fast_mul_add(foreground.color.g, foreground_factor, background.color.g * background_factor);
+            pixel->color.b = fast_mul_add(foreground.color.b, foreground_factor, background.color.b * background_factor);
+            pixel->opacity = opacity;
+            pixel->depth   = foreground.depth;
+        } else *pixel = foreground;
+    } else *pixel = new_pixel;
+}
+INLINE void setPixelByCoords(i32 x, i32 y, f64 depth, vec3 color, f32 opacity, FloatPixel *pixels, u16 stride) {
+    setPixel(pixels + (stride * y) + x, color, opacity, depth);
+}

@@ -201,7 +201,7 @@ u32 splitBVHNode(BVHNode *bvh_nodes, u32 *bvh_node_count, BVHBuilder *builder, B
     return start + left_count;
 }
 
-void buildBVH(BVH *bvh, BVHBuilder *builder, u32 N, u32 max_leaf_size) {
+void buildBVH(BVH *bvh, BVHBuilder *builder, u32 N, u16 max_leaf_size) {
     bvh->node_count = 1;
     initBVHNode(bvh->nodes);
 
@@ -213,9 +213,10 @@ void buildBVH(BVH *bvh, BVHBuilder *builder, u32 N, u32 max_leaf_size) {
             bvh->leaf_ids[i] = builder_node->first_child_id;
             bvh->nodes->aabb = mergeAABBs(bvh->nodes->aabb, builder_node->aabb);
         }
-        bvh->nodes->primitive_count = N;
+        bvh->nodes->depth = 0;
+        bvh->nodes->child_count = (u16)N;
         bvh->nodes->first_child_id = 0;
-        bvh->depth = 1;
+        bvh->height = 1;
 
         return;
     }
@@ -232,34 +233,36 @@ void buildBVH(BVH *bvh, BVHBuilder *builder, u32 N, u32 max_leaf_size) {
     stack[1].end = N;
     stack[1].node_id = 2;
 
-    i32 index = 1;
+    i32 depth = 1;
     u32 leaf_count = 0;
     BuildIteration left, right;
     BVHNode *node;
 
-    bvh->depth = 1;
+    bvh->height = 1;
 
-    while (index >= 0) {
-        left = stack[index];
+    while (depth >= 0) {
+        left = stack[depth];
         node = bvh->nodes + left.node_id;
         N = left.end - left.start;
         if (N <= max_leaf_size) {
-            node->primitive_count = N;
+            node->depth = (u16)depth;
+            node->child_count = (u16)N;
             node->first_child_id = leaf_count;
             leaf_id = builder->leaf_ids + left.start;
             for (u32 i = 0; i < N; i++, leaf_id++)
                 bvh->leaf_ids[leaf_count + i] = builder->leaf_nodes[*leaf_id].first_child_id;
             leaf_count += N;
-            index--;
+            depth--;
         } else {
             middle = splitBVHNode(bvh->nodes, &bvh->node_count, builder, node, left.start, left.end);
+            bvh->nodes[bvh->node_count - 1].depth = bvh->nodes[bvh->node_count - 2].depth = (u16)depth;
             right.end = left.end;
             right.start = left.end = middle;
             left.node_id  = node->first_child_id;
             right.node_id = node->first_child_id + 1;
-            stack[  index] = left;
-            stack[++index] = right;
-            if (index > (i32)bvh->depth) bvh->depth = (u32)index;
+            stack[  depth] = left;
+            stack[++depth] = right;
+            if (depth > (i32)bvh->height) bvh->height = (u32)depth;
         }
     }
 
@@ -319,11 +322,15 @@ void updateMeshBVH(Mesh *mesh, BVHBuilder *builder) {
 
     buildBVH(&mesh->bvh, builder, mesh->triangle_count, MAX_TRIANGLES_PER_MESH_BVH_NODE);
 
+    for (u32 i = 0; i < mesh->triangle_count; i++) builder->leaf_ids[i] = mesh->bvh.leaf_ids[i];
+
     mat3 m3;
     Triangle *triangle = mesh->triangles;
-    u32 *triangle_id = mesh->bvh.leaf_ids;
+    u32 *triangle_id = builder->leaf_ids;
     for (u32 i = 0; i < mesh->triangle_count; i++, triangle++, triangle_id++) {
-        indices = mesh->vertex_position_indices + *triangle_id;
+        mesh->bvh.leaf_ids[*triangle_id] = i;
+
+        indices = mesh->vertex_position_indices + *triangle_id; // 7
 
         v1 = &mesh->vertex_positions[indices->ids[0]];
         v2 = &mesh->vertex_positions[indices->ids[1]];
@@ -331,7 +338,7 @@ void updateMeshBVH(Mesh *mesh, BVHBuilder *builder) {
 
         m3.X = subVec3(*v3, *v1);
         m3.Y = subVec3(*v2, *v1);
-        m3.Z = crossVec3(m3.Y, m3.X);
+        m3.Z = crossVec3(m3.X, m3.Y);
         m3.Z = normVec3(m3.Z);
 
         indices = mesh->vertex_normal_indices + *triangle_id;
@@ -339,9 +346,18 @@ void updateMeshBVH(Mesh *mesh, BVHBuilder *builder) {
         triangle->world_to_tangent = invMat3(m3);
         triangle->normal = m3.Z;
         triangle->position = *v1;
+
+//        triangle->minus_position_dot_normal = -1 * dotVec3(normVec3(triangle->position), triangle->normal);
         triangle->vertex_normals[0] = mesh->vertex_normals[indices->ids[0]];
         triangle->vertex_normals[1] = mesh->vertex_normals[indices->ids[1]];
         triangle->vertex_normals[2] = mesh->vertex_normals[indices->ids[2]];
+
+        if (mesh->uvs_count) {
+            indices = mesh->vertex_uvs_indices + *triangle_id;
+            triangle->uvs[0] = mesh->vertex_uvs[indices->ids[0]];
+            triangle->uvs[1] = mesh->vertex_uvs[indices->ids[1]];
+            triangle->uvs[2] = mesh->vertex_uvs[indices->ids[2]];
+        }
     }
 }
 

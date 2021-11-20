@@ -92,10 +92,10 @@
 
 typedef unsigned char      u8;
 typedef unsigned short     u16;
-typedef unsigned int       u32;
+typedef unsigned long      u32;
 typedef unsigned long long u64;
 typedef signed   short     i16;
-typedef signed   int       i32;
+typedef signed   long      i32;
 
 typedef float  f32;
 typedef double f64;
@@ -150,13 +150,12 @@ typedef void (*CallbackWithCharPtr)(char* str);
 #define VIEWPORT_DEFAULT__NEAR_CLIPPING_PLANE_DISTANCE 0.001f
 #define VIEWPORT_DEFAULT__FAR_CLIPPING_PLANE_DISTANCE 1000.0f
 
-#define LAMBERT 1
-#define PHONG 2
-#define BLINN 4
-#define REFLECTION 8
-#define REFRACTION 16
-#define TRANSPARENCY 32
-#define EMISSION 64
+#define REFLECTIVE 1
+#define REFRACTIVE 2
+#define EMISSIVE 4
+#define TRANSPARENT_UV 8
+#define ALBEDO_MAP 1
+#define NORMAL_MAP 2
 
 #define TRACE_OFFSET 0.0001f
 
@@ -172,10 +171,29 @@ typedef void (*CallbackWithCharPtr)(char* str);
 #define IOR_AIR 1.0003f
 #define IOR_GLASS 1.52f
 
+
+// Culling flags:
+// ======================
+#define IS_NEAR  0b00000001
+#define IS_FAR   0b00000010
+#define IS_BELOW 0b00000100
+#define IS_ABOVE 0b00001000
+#define IS_RIGHT 0b00010000
+#define IS_LEFT  0b00100000
+#define IS_OUT   0b00111111
+#define IS_NDC   0b01000000
+
+// Clipping flags:
+// ===============
+#define CULL    0b00000000
+#define CLIP    0b00000001
+#define INSIDE  0b00000010
+
 typedef struct u8_3 { u8 x, y, z; } u8_3;
 typedef struct vec2i { i32 x, y; } vec2i;
+typedef struct vec2u { u32 x, y; } vec2u;
 typedef union vec2 { struct {f32 x, y;        }; struct {f32 u, v;       }; f32 components[2]; } vec2;
-typedef union vec3 { struct {f32 x, y, z;     }; struct {f32 u, v, w;    }; struct {f32 r, g, b; }; struct {f32 red, green, blue; }; f32 components[3]; } vec3;
+typedef union vec3 { struct {f32 x, y, z;     }; struct {f32 u, v, W;    }; struct {vec2 v2; f32 _; }; struct {f32 r, g, b; }; struct {f32 red, green, blue; }; struct {f32 A, B, C; }; f32 components[3]; } vec3;
 typedef union vec4 { struct {f32 x, y, z, w;  }; struct {f32 r, g, b, a; }; struct {vec3 v3; f32 _; }; f32 components[4]; } vec4;
 typedef union mat2 { struct {vec2 X, Y;       }; vec2 axis[2]; } mat2;
 typedef union mat3 { struct {vec3 X, Y, Z;    }; vec3 axis[3]; } mat3;
@@ -322,7 +340,11 @@ typedef struct Dimensions {
         h_height, h_width;
 } Dimensions;
 
-void updateDimensions(Dimensions *dimensions, u16 width, u16 height) {
+void updateDimensions(Dimensions *dimensions, u16 width, u16 height, bool QCAA) {
+    if (QCAA) {
+        width++;
+        height++;
+    }
     dimensions->width = width;
     dimensions->height = height;
     dimensions->width_times_height = dimensions->width * dimensions->height;
@@ -338,7 +360,7 @@ typedef struct PixelGrid {
     Dimensions dimensions;
     Pixel* pixels;
     FloatPixel* float_pixels;
-    bool gamma_corrected_blending;
+    bool QCAA;
 } PixelGrid;
 
 void swap(i32 *a, i32 *b) {
@@ -706,62 +728,13 @@ void copyPixels(PixelGrid *src, PixelGrid *trg, i32 width, i32 height, i32 trg_x
     }
 }
 
-INLINE void setPixel(FloatPixel *pixel, vec3 color, f32 opacity, f64 z, bool blend_with_gamma_correction) {
-    FloatPixel foreground, background = *pixel;
-    foreground.depth = z;
-    foreground.opacity = opacity;
-    foreground.color.r = color.r * opacity;
-    foreground.color.g = color.g * opacity;
-    foreground.color.b = color.b * opacity;
-
-    if (foreground.depth > background.depth) {
-        *pixel = foreground;
-        foreground = background;
-        background = *pixel;
-    }
-
-    if (blend_with_gamma_correction) {
-        background.color.r *= background.color.r;
-        background.color.g *= background.color.g;
-        background.color.b *= background.color.b;
-        foreground.color.r *= foreground.color.r;
-        foreground.color.g *= foreground.color.g;
-        foreground.color.b *= foreground.color.b;
-    }
-
-    opacity = 1.0f - foreground.opacity;
-    pixel->color.r = fast_mul_add(background.color.r, opacity, foreground.color.r);
-    pixel->color.g = fast_mul_add(background.color.g, opacity, foreground.color.g);
-    pixel->color.b = fast_mul_add(background.color.b, opacity, foreground.color.b);
-
-    if (blend_with_gamma_correction) {
-        pixel->color.r = sqrtf(pixel->color.r);
-        pixel->color.g = sqrtf(pixel->color.g);
-        pixel->color.b = sqrtf(pixel->color.b);
-    }
-
-    pixel->opacity = foreground.opacity + background.opacity * opacity;
-    pixel->depth = foreground.depth;
-}
-
-void preparePixelGridForDisplay(PixelGrid *canvas) {
-    FloatPixel *float_pixel = canvas->float_pixels;
-    Pixel *pixel = canvas->pixels;
-    for (u32 pixel_index = 0; pixel_index < canvas->dimensions.width_times_height; pixel_index++, float_pixel++, pixel++) {
-        pixel->color.R = (u8)(clampValueToBetween(float_pixel->color.r, 0, MAX_COLOR_VALUE));
-        pixel->color.G = (u8)(clampValueToBetween(float_pixel->color.g, 0, MAX_COLOR_VALUE));
-        pixel->color.B = (u8)(clampValueToBetween(float_pixel->color.b, 0, MAX_COLOR_VALUE));
-        pixel->color.A = (u8)(clampValue(float_pixel->opacity) * FLOAT_TO_COLOR_COMPONENT);
-    }
-}
-
 typedef struct String {
     u32 length;
     char *char_ptr;
 } String;
 
 typedef struct NumberString {
-    char _buffer[12];
+    char _buffer[13];
     String string;
 } NumberString;
 

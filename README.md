@@ -22,63 +22,67 @@ All features of SlimEngine are available here as well.<br>
 Additional features include raytracing facilities:<br>
 
 * <b><u>Point lights</b>:</u> Can be moved around and scaled (changing their light intensity)<br>
-  <img src="src/examples/1_lights.gif" alt="1_lights" height="360"><br>
+  <img src="src/examples/01_Lights.gif" alt="01_Lights" height="360"><br>
   <p float="left">
-    <img src="src/examples/1_lights_scene_setup_c.png" alt="1_lights_scene_setup_code" width="360">
-    <img src="src/examples/1_lights_update_and_render_c.png" alt="1_lights_update_and_render_code" height="300">
+    <img src="src/examples/01_Lights_setup.png" alt="01_Lights_setup" width="360">
+    <img src="src/examples/01_Lights_update.png" alt="01_Lights_update" height="300">
   </p>
 * <b><u>Shapes</b>:</u> Spheres, Boxes, Tetrahedra with UV-based transparency<br>
-  <img src="src/examples/2_shapes.gif" alt="2_shapes" height="360"><br>
+  <img src="src/examples/02_Geometry.gif" alt="02_Geometry" height="360"><br>
   <p float="left">
-    <img src="src/examples/2_shapes_scene_setup_c.png" alt="2_shapes_scene_setup_code" width="360">
-    <img src="src/examples/2_shapes_update_and_render_c.png" alt="2_shapes_update_and_render_code" height="370">
+    <img src="src/examples/02_Geometry_setup.png" alt="2_shapes_scene_setup_code" width="360">
+    <img src="src/examples/02_Geometry_update.png" alt="2_shapes_update_and_render_code" height="370">
   </p>
   <p float="left">
-    <img src="src/examples/2_shapes_uv_transparency.gif" alt="2_shapes_uve_transparency" height="360">
-    <img src="src/examples/2_shapes_transparency_c.png" alt="2_shapes_transparency_code" height="360">
+    <img src="src/examples/02_Geometry.gif" alt="02_Geometry" height="360">
+    <img src="src/examples/02_Geometry_transparency.png" alt="2_shapes_transparency_code" height="360">
   </p>
-* <b><u>Materials</b>:</u> Lambert, Blinn, Phong with controllable shininess<br>
+* <b><u>Materials</b>:</u> Lambert, Blinn, Phong with controllable metal<br>
   <img src="src/examples/3_materials_classic_shaders.gif" alt="3_materials_classic_shaders" height="360"><br>
   <p float="left">
-    <img src="src/examples/3_materials_classic_shaders_setup_c.png" alt="3_materials_classic_setup_code" height="450">
-    <img src="src/examples/3_materials_classic_update_selection_c.png" alt="3_materials_classic_update_selection_code" height="450">
+    <img src="src/examples/03_BlinnPhong_setup.png" alt="3_materials_classic_setup_code" height="450">
+    <img src="src/examples/03_BlinnPhong_selection.png" alt="3_materials_classic_update_selection_code" height="450">
   </p>
-* <b><u>Materials</b>:</u> Reflective or Refractive with controllable trace-depth<br>
-  <p float="left">  
-    <img src="src/examples/4_materials_reflective.gif" alt="4_materials_reflective" height="360"><br>
-    <img src="src/examples/4_materials_refractive.gif" alt="4_materials_refractive" height="360"><br>
-  </p>
+* <b><u>Materials</b>:</u> Reflective or Refractive with controllable trace-height<br>
+  <img src="src/examples/04_GlassMirror.gif" alt="4_materials_reflective" height="360"><br>
   <p float="left">   
-    <img src="src/examples/4_materials_ref_setup_c.png" alt="4_materials_ref_setup_code" height="450">
-    <img src="src/examples/4_materials_ref_update_selection_c.png" alt="4_materials_ref_update_selection_code" height="450">
+    <img src="src/examples/04_GlassMirror_setup.png" alt="4_materials_ref_setup_code" height="450">
+    <img src="src/examples/04_GlassMirror_selection.png" alt="4_materials_ref_update_selection_code" height="450">
   </p>
+* <b><u>Materials</b>:</u> Physically Based (Cook-Torrance BRDF)<br>
+  <img src="src/examples/05_PBR.gif" alt="05_PBR" height="360"><br>
+  <img src="src/examples/05_PBR.png" alt="05_PBR" height="450">  
 * <b><u>Materials</b>:</u> Emissive quads can be used as rectangular area lights<br>
-  <img src="src/examples/5_materials_emissive.gif" alt="5_materials_emissive" height="360"><br>
+  <img src="src/examples/06_AreaLights.gif" alt="06_AreaLights" height="360"><br>
   <p float="left">   
-    <img src="src/examples/5_materials_emissive_setup_c.png" alt="4_materials_ref_setup_code" height="450">
-    <img src="src/examples/5_materials_emissive_update_selection_c.png" alt="4_materials_ref_update_selection_code" height="450">
+    <img src="src/examples/06_AreaLights_setup.png" alt="06_AreaLights_setup" height="450">
+    <img src="src/examples/06_AreaLights_selection.png" alt="06_AreaLights_selection" height="450">
   </p>  
 * <b><u>Meshes</b>:</u> Transformable and can have smooth shading using vertex normal interpolation<br>
-  <img src="src/examples/6_meshes.gif" alt="6_meshes" height="360"><br>
+  <img src="src/examples/07_Meshes.gif" alt="07_Meshes" height="360"><br>
   <p float="left">
-    <img src="src/examples/6_meshes_scene_setup_c.png" alt="6_meshes_scene_setup_code" height="450">
-    <img src="src/examples/6_meshes_update_and_render_c.png" alt="6_meshes_update_and_render_code" height="450">
+    <img src="src/examples/07_Meshes_setup.png" alt="07_Meshes_setup" height="450">
+    <img src="src/examples/07_Meshes_update.png" alt="07_Meshes_update" height="450">
   </p>
 * <b><u>Render Modes</b>:</u> Beauty, Depth, Normals, UVs and acceleration structures<br>
-  <img src="src/examples/7_modes.gif" alt="7_modes" height="360"><br>
+  <img src="src/examples/08_Modes.gif" alt="08_Modes" height="360"><br>
   Acceleration structures can be overlayed showing how they update dynamically.<br>
   The scene's BVH is re-built any time a primitive is moved or transformed.<br>
   The screen space bounds (SSB) also update when the camera changes.<br>
-  <img src="src/examples/7_modes_as.gif" alt="7_modes_as" height="360"><br>
+  <img src="src/examples/08_Modes_BVH.gif" alt="08_Modes_BVH" height="360"><br>
   <p float="left">
-    <img src="src/examples/7_modes_setup_c.png" alt="7_modes_setup_code" height="400">
-    <img src="src/examples/7_modes_update_c.png" alt="7_modes_update_code" height="400">
+    <img src="src/examples/08_Modes_setup.png" alt="08_Modes_setup" height="400">
+    <img src="src/examples/08_Modes_update.png" alt="08_Modes_update" height="400">
   </p>
-* <b><u>XPU Modes</b>:</u> CPU vs. GPU (CUDA)<br>
-  <img src="src/examples/8_XPU.gif" alt="8_XPU" height="360"><br>
-  <img src="src/examples/8_GPU.gif" alt="8_GPU" height="360"><br>
+* <b><u>Textures</b>:</u> Albedo, Normal<br>
+  <img src="src/examples/09_Textures.gif" alt="09_Textures" height="360"><br>
+  Textures can be loaded from files, for use as albedo and normal maps.<br>
+  <img src="src/examples/09_Textures.png" alt="09_Textures" height="400"><br>
+* <b><u>XPU</b>:</u> CPU vs. GPU (CUDA)<br>
+  <img src="src/examples/XPU.gif" alt="XPU" height="360"><br>
+  <img src="src/examples/GPU.gif" alt="GPU" height="360"><br>
   Compiling using CUDA allows for toggling between rendering on the CPU or the GPU.<br>
-  <img src="src/examples/8_XPU_c.png" alt="8_XPU_code" height="400">
+  <img src="src/examples/XPU.png" alt="XPU" height="400">
 * <b><u>obj2mesh</b>:</u> Also privided is a separate CLI tool for converting `.obj` files to `.mesh` files.<br>
   It is also written in plain C so can be compiled in either C or C++.<br>
   Usage is simple: `./obj2mesh my_obj_file.obj my_mesh_file.mesh`<br>
@@ -136,5 +140,5 @@ Holding the `middle mouse button` and dragging the mouse scales the object.<br>
 In some examples, further interaction is enabled while holding `ctrl` or `shift` <br>
 using the `mouse wheel` as a virtual "slider":<br>
 Holding `shift` and scrolling the `mouse wheel` cycles the assigned material for the selected object.<br>
-Holding `ctrl` and scrolling the `mouse wheel` increases or decreases the trace-depth*<br>
+Holding `ctrl` and scrolling the `mouse wheel` increases or decreases the trace-height*<br>
 <i>(how many times rays are allowed to bounce around between reflective or refractive objects)</i><br>

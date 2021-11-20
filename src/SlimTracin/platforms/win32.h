@@ -165,11 +165,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
-            _keyChanged((u32)wParam, true);
+            _keyChanged((u8)wParam, true);
             break;
 
         case WM_SYSKEYUP:
-        case WM_KEYUP: _keyChanged((u32)wParam, false); break;
+        case WM_KEYUP: _keyChanged((u8)wParam, false); break;
 
         case WM_MBUTTONUP:     _mouseButtonUp(  &app->controls.mouse.middle_button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)); break;
         case WM_MBUTTONDOWN:   _mouseButtonDown(&app->controls.mouse.middle_button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)); break;

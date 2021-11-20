@@ -15,7 +15,7 @@ INLINE bool traceScene(Ray *ray, Trace *trace, Scene *scene, bool any_hit) {
     if (!hitAABB(&scene->bvh.nodes->aabb, ray, trace->closest_hit.distance, &left_distance))
         return false;
 
-    if (unlikely(scene->bvh.nodes->primitive_count))
+    if (unlikely(scene->bvh.nodes->child_count))
         return hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, any_hit, false, 0, 0);
 
     BVHNode *left_node = scene->bvh.nodes + scene->bvh.nodes->first_child_id;
@@ -30,8 +30,8 @@ INLINE bool traceScene(Ray *ray, Trace *trace, Scene *scene, bool any_hit) {
         hit_right = hitAABB(&right_node->aabb, ray, trace->closest_hit.distance, &right_distance);
 
         if (hit_left) {
-            if (unlikely(left_node->primitive_count)) {
-                if (hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids + left_node->first_child_id, left_node->primitive_count, any_hit, false, 0, 0)) {
+            if (unlikely(left_node->child_count)) {
+                if (hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids + left_node->first_child_id, left_node->child_count, any_hit, false, 0, 0)) {
                     found = true;
                     if (any_hit)
                         break;
@@ -43,8 +43,8 @@ INLINE bool traceScene(Ray *ray, Trace *trace, Scene *scene, bool any_hit) {
             left_node = null;
 
         if (hit_right) {
-            if (unlikely(right_node->primitive_count)) {
-                if (hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids + right_node->first_child_id, right_node->primitive_count, any_hit, false, 0, 0)) {
+            if (unlikely(right_node->child_count)) {
+                if (hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids + right_node->first_child_id, right_node->child_count, any_hit, false, 0, 0)) {
                     found = true;
                     if (any_hit)
                         break;

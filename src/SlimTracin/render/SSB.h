@@ -66,30 +66,29 @@ INLINE bool computeSSB(Rect *bounds, vec3 *pos, f32 r, f32 focal_length, Dimensi
     f32 factor;
 
     if (z <= r) { // Camera is within the bounds of the shape - fallback to doing weak-projection:
-        // The focal length is defined with respect to a 'conceptual' projection-plane of width 2 (spanning in [-1, +1])
-        // which is situated at that value's distance away from the camera (along it's view-space's positive Z axis).
-        // So half of it's width is 1 while half of it's height is the inverse of the aspect ratio (height / width).
+        // The focal length ('fl') is defined with respect to a 'conceptual' projection-plane of height 2 (spanning in [-1, +1])
+        // which is situated at distance 'fl' away from the camera, along its view-space's positive Z axis.
+        // So half of its height is 1 while half of its width is the aspect ratio (width / height).
 
-        // w : Half of the width of a projection-plane placed at 'pos' and facing the camera:
-        // fl / 1 = abs(z) / w
-        // fl * w = abs(z)
-        // w = abs(z) / fl
-        f32 w = fabsf(z) / focal_length;
-        right  = x + r;
-        left   = x - r;
-        if (w < left || right < -w) // The geometry is out of view horizontally (either on the left or the right)
-            return false;
-
+        // Compute the dimensions of a proportionally-scaled image plane situated at distance 'z' instead of 'fl'
         // h : Half of the height of a projection-plane placed at 'pos' and facing the camera:
-        // h / abs(z) = (height/width) / fl
-        // h = abs(z) * (height/width) / fl
-        // h = abs(z) / fl * (height/width)
-        // h = w * (height/width)
-        f32 h = w * dimensions->height_over_width;
+        // fl / 1 = abs(z) / h
+        // fl * h = abs(z)
+        // h = abs(z) / fl
+        f32 h = fabsf(z) / focal_length;
         top    = y + r;
         bottom = y - r;
 
         if (h < bottom || top < -h) // The geometry is out of view vertically (either above or below)
+            return false;
+
+        // w : Half of the width of a projection-plane placed at 'pos' and facing the camera:
+        // w / h = width / height
+        // w = h * width / height
+        f32 w = h * dimensions->width_over_height;
+        right  = x + r;
+        left   = x - r;
+        if (w < left || right < -w) // The geometry is out of view horizontally (either on the left or the right)
             return false;
 
         bounds->min.x = -w < left   ? (u16)(dimensions->f_width  * (left   + w) / (2 * w)) : 0;
@@ -103,20 +102,19 @@ INLINE bool computeSSB(Rect *bounds, vec3 *pos, f32 r, f32 focal_length, Dimensi
     f32 den = z*z - r*r;
     factor = focal_length / den;
 
-    f32 xz = x * z;
-    f32 sqr = x*x + den;
+    f32 yz = y * z;
+    f32 sqr = y*y + den;
     sqr = r * sqrtf(sqr);
 
-    left  = factor*(xz - sqr);
-    right = factor*(xz + sqr);
-    if (left < 1 && right > -1) {
-        factor *= dimensions->width_over_height;
-
-        f32 yz = y * z;
-        sqr = r * sqrtf(y*y + den);
-        bottom = factor*(yz - sqr);
-        top    = factor*(yz + sqr);
-        if (bottom < 1 && top > -1) {
+    bottom = factor*(yz - sqr);
+    top = factor*(yz + sqr);
+    if (bottom < 1 && top > -1) {
+        factor *= dimensions->height_over_width;
+        f32 xz = x * z;
+        sqr = r * sqrtf(x*x + den);
+        left = factor*(xz - sqr);
+        right    = factor*(xz + sqr);
+        if (left < 1 && right > -1) {
             bottom = bottom > -1 ? bottom : -1; bottom += 1;
             top    = top < 1 ? top : 1; top    += 1;
             left   = left > -1 ? left : -1; left   += 1;
@@ -175,27 +173,27 @@ void updateSceneSSB(Scene *scene, Viewport *viewport) {
 }
 
 void drawSSB(Scene *scene, Viewport *viewport) {
-    RGBA color;
+    vec3 color;
     Primitive *primitive = scene->primitives;
     vec2i min, max;
     for (u32 i = 0; i < scene->settings.primitives; i++, primitive++) {
         if (primitive->flags & IS_VISIBLE) {
             switch (primitive->type) {
-                case PrimitiveType_Box        : color = ColorOf(Cyan);    break;
-                case PrimitiveType_Quad       : color = ColorOf(White);   break;
-                case PrimitiveType_Sphere     : color = ColorOf(Yellow);  break;
-                case PrimitiveType_Tetrahedron: color = ColorOf(Magenta); break;
-                case PrimitiveType_Mesh       : color = ColorOf(Red);     break;
+                case PrimitiveType_Box        : color = Color(Cyan);    break;
+                case PrimitiveType_Quad       : color = Color(White);   break;
+                case PrimitiveType_Sphere     : color = Color(Yellow);  break;
+                case PrimitiveType_Tetrahedron: color = Color(Magenta); break;
+                case PrimitiveType_Mesh       : color = Color(Red);     break;
                 default:
                     continue;
             }
             min = primitive->screen_bounds.min;
             max = primitive->screen_bounds.max;
 
-            drawHLine(viewport->frame_buffer, color, min.x, max.x, min.y);
-            drawHLine(viewport->frame_buffer, color, min.x, max.x, max.y);
-            drawVLine(viewport->frame_buffer, color, min.y, max.y, min.x);
-            drawVLine(viewport->frame_buffer, color, min.y, max.y, max.x);
+            drawHLine(min.x, max.x, min.y, color, 1, viewport);
+            drawHLine(min.x, max.x, max.y, color, 1, viewport);
+            drawVLine(min.y, max.y, min.x, color, 1, viewport);
+            drawVLine(min.y, max.y, max.x, color, 1, viewport);
         }
     }
 }
