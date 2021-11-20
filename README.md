@@ -54,8 +54,8 @@ Additional features include raytracing facilities:<br>
 * <b><u>Materials</b>:</u> Emissive quads can be used as rectangular area lights<br>
   <img src="src/examples/06_AreaLights.gif" alt="06_AreaLights" height="360"><br>
   <p float="left">   
-    <img src="src/examples/06_AreaLights_setup.png" alt="06_AreaLights_setup" height="450">
-    <img src="src/examples/06_AreaLights_selection.png" alt="06_AreaLights_selection" height="450">
+    <img src="src/examples/06_AreaLights_setup.png" alt="06_AreaLights_setup" height="360">
+    <img src="src/examples/06_AreaLights_selection.png" alt="06_AreaLights_selection" height="300">
   </p>  
 * <b><u>Meshes</b>:</u> Transformable and can have smooth shading using vertex normal interpolation<br>
   <img src="src/examples/07_Meshes.gif" alt="07_Meshes" height="360"><br>
