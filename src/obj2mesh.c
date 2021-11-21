@@ -282,24 +282,34 @@ int obj2mesh(char* obj_file_path, char* mesh_file_path, bool invert_winding_orde
 
     return 0;
 }
+int EndsWith(const char *str, const char *suffix) {
+    if (!str || !suffix)
+        return 0;
+    size_t lenstr = strlen(str);
+    size_t lensuffix = strlen(suffix);
+    if (lensuffix >  lenstr)
+        return 0;
+    return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
+}
 
 int main(int argc, char *argv[]) {
-    if (argc == 2 && !strcmp(argv[1], (char*)"--help")) {
-        printf((char*)("Exactly 2 file paths need to be provided: "
-                       "An '.obj' file (input) then a '.mesh' file (output), "
-                       "and an optional flag '-invert_winding_order' for inverting winding order"));
-        return 0;
-    } else if (argc == 3 || // 2 arguments
-               argc == 4    // 3 arguments
-            ) {
-        char *obj_file_path = argv[1];
-        char *mesh_file_path = argv[2];
-        bool invert_winding_order = argc == 4 ? !strcmp(argv[3], (char*)"-invert_winding_order") : false;
-        return obj2mesh(obj_file_path, mesh_file_path, invert_winding_order);
+    // Error if less than 2 arguments were provided
+    bool valid_input = argc >= 3 && (EndsWith(argv[1], ".obj") && (EndsWith(argv[2], ".mesh")));
+    if (!valid_input) {
+        printf("Exactly 2 file paths need to be provided: A '.obj' file (input) then a '.mesh' file (output)");
+        return 1;
     }
 
-    printf((char*)("Exactly 2 file paths need to be provided: "
-                   "An '.obj' file (input) then a '.mesh' file (output), "
-                   "and an optional flag '-invert_winding_order' for inverting winding order"));
-    return 1;
+    char* src_file_path = argv[1];
+    char* trg_file_path = argv[2];
+    bool invert_winding_order = false;
+    for (u8 i = 3; i < (u8)argc; i++) {
+        if (argv[i][0] == '-' && argv[i][1] == 'i') invert_winding_order = true;
+        else {
+            printf("Unknown argument: %s", argv[i]);
+            valid_input = false;
+            break;
+        }
+    }
+    return valid_input ? obj2mesh(src_file_path, trg_file_path, invert_winding_order) : 1;
 }

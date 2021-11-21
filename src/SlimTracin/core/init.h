@@ -473,6 +473,8 @@ void initMaterial(Material *material) {
     material->roughness  = 1;
     material->n1_over_n2 = 1;
     material->n2_over_n1 = 1;
+    material->uv_repeat.u = 1;
+    material->uv_repeat.v = 1;
     material->brdf = BRDF_Lambert;
     material->texture_count = 0;
     material->is =  0;

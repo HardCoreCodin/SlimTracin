@@ -346,41 +346,42 @@ void setupScene(Scene *scene) {
         fill->position_or_direction = Vec3(-10, 10, -5);
     }
     { // Setup Primitives:
-        vec3 X = Vec3(1, 0, 0);
-        vec3 Y = Vec3(0, 1, 0);
-        vec3 Z = Vec3(0, 0, 1);
+        Primitive *floor  = scene->primitives + PRIM_FLOOR;
+        Primitive *box    = scene->primitives + PRIM_BOX;
+        Primitive *tet    = scene->primitives + PRIM_TET;
+        Primitive *sphere = scene->primitives + PRIM_SPHERE;
+        Primitive *mesh   = scene->primitives + PRIM_MESH;
 
-        quat rot_x = getRotationAroundAxis(X, 0.02f);
-        quat rot_y = getRotationAroundAxis(Y, 0.04f);
-        quat rot_z = getRotationAroundAxis(Z, 0.06f);
+        mesh->id = MESH_DRAGON;
+        mesh->type   = PrimitiveType_Mesh;
+        box->type    = PrimitiveType_Box;
+        floor->type  = PrimitiveType_Quad;
+        sphere->type = PrimitiveType_Sphere;
+        tet->type    = PrimitiveType_Tetrahedron;
 
-        Primitive *flr = &scene->primitives[PRIM_FLOOR];
-        Primitive *box = &scene->primitives[PRIM_BOX];
-        Primitive *tet = &scene->primitives[PRIM_TET];
-        Primitive *spr = &scene->primitives[PRIM_SPHERE];
-        Primitive *msh = &scene->primitives[PRIM_MESH];
+        floor->material_id  = MATERIAL_FLOOR;
+        box->material_id    = MATERIAL_PBR;
+        mesh->material_id   = MATERIAL_PBR;
+        tet->material_id    = MATERIAL_GLASS;
+        sphere->material_id = MATERIAL_MIRROR;
 
-        msh->id = MESH_DRAGON;
-        msh->type = PrimitiveType_Mesh;
-        box->type = PrimitiveType_Box;
-        flr->type = PrimitiveType_Quad;
-        spr->type = PrimitiveType_Sphere;
-        tet->type = PrimitiveType_Tetrahedron;
+        mesh->scale      = getVec3Of(0.6f);
+        mesh->position   = Vec3(0, 4, -1);
+        floor->scale     = Vec3(40, 1, 40);
+        sphere->position = Vec3(5, 3, 0);
+        box->position    = Vec3(-9, 3, 3);
+        tet->position    = Vec3(-3, 4, 12);
 
-        flr->material_id = MATERIAL_FLOOR;
-        box->material_id = MATERIAL_PBR;
-        msh->material_id = MATERIAL_PBR;
-        tet->material_id = MATERIAL_GLASS;
-        spr->material_id = MATERIAL_MIRROR;
-
-        msh->position = Vec3( 0, 4, -1);
-        msh->scale    = getVec3Of(0.6f);
-        flr->scale    = Vec3(40, 1, 40);
-        spr->position = Vec3( 5, 3, 0);
-        box->position = Vec3(-9, 3, 3);
-        tet->position = Vec3(-3, 4, 12);
-        box->rotation = normQuat(mulQuat(rot_x, rot_y));
-        tet->rotation = normQuat(mulQuat(box->rotation, rot_z));
+        { // Primitive rotation:
+            vec3 X = Vec3(1, 0, 0);
+            vec3 Y = Vec3(0, 1, 0);
+            vec3 Z = Vec3(0, 0, 1);
+            quat rot_x = getRotationAroundAxis(X, 0.02f);
+            quat rot_y = getRotationAroundAxis(Y, 0.04f);
+            quat rot_z = getRotationAroundAxis(Z, 0.06f);
+            box->rotation = normQuat(mulQuat(rot_x, rot_y));
+            tet->rotation = normQuat(mulQuat(box->rotation, rot_z));
+        }
     }
     { // Setup Materials:
         Material *pbr    = scene->materials + MATERIAL_PBR;

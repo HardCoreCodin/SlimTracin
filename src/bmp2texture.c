@@ -401,7 +401,7 @@ int EndsWith(const char *str, const char *suffix) {
 }
 
 int main(int argc, char *argv[]) {
-    //return error if user does not provide at least 2 arguments
+    // Error if less than 2 arguments were provided
     bool valid_input = argc >= 3 && (EndsWith(argv[1], ".bmp") && (EndsWith(argv[2], ".texture")));
     if (!valid_input) {
         printf("Exactly 2 file paths need to be provided: A '.bmp' file (input) then a '.text' file (output)");
@@ -413,7 +413,7 @@ int main(int argc, char *argv[]) {
     bool mipmap = false;
     bool wrap = false;
     for (u8 i = 3; i < (u8)argc; i++) {
-        if (argv[i][0] == '-' && argv[i][1] == 'm') mipmap = true;
+        if (     argv[i][0] == '-' && argv[i][1] == 'm') mipmap = true;
         else if (argv[i][0] == '-' && argv[i][1] == 'w') wrap = true;
         else {
             printf("Unknown argument: %s", argv[i]);

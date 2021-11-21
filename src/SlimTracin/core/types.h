@@ -317,6 +317,7 @@ enum BRDF {
 
 typedef struct Material {
     vec3 albedo, reflectivity, emission;
+    vec2 uv_repeat;
     f32 metallic, roughness, n1_over_n2, n2_over_n1;
     u8 is, use, texture_count, texture_ids[16];
     enum BRDF brdf;
@@ -326,6 +327,7 @@ typedef struct Shaded {
     Primitive *primitive;
     Material *material;
     vec3 albedo, position, normal, viewing_direction, viewing_origin, reflected_direction, light_direction, emissive_quad_vertices[4];
+    vec2 uv;
 } Shaded;
 
 typedef struct Selection {

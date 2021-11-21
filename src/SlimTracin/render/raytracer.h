@@ -98,7 +98,8 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
             case RenderMode_Normals: {
                     Material *M = scene->materials  + trace->closest_hit.material_id;
                     if (M->texture_count > 1 && M->use & NORMAL_MAP) {
-                        quat rotation = getNormalRotation(sampleNormal(scene->textures[M->texture_ids[1]].mips, trace->closest_hit.uv));
+                        vec2 uv = Vec2(trace->closest_hit.uv.u * M->uv_repeat.u, trace->closest_hit.uv.v * M->uv_repeat.v);
+                        quat rotation = getNormalRotation(sampleNormal(scene->textures[M->texture_ids[1]].mips, uv));
                         trace->closest_hit.normal = mulVec3Quat(trace->closest_hit.normal, rotation);
                     }
 

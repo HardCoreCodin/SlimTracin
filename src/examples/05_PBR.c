@@ -76,11 +76,11 @@ void setupScene(Scene *scene) {
     scene->cameras->transform.position.z = -11;
     { // Setup Lights:
         Light *light = scene->lights;
-        for (u8 i = 0; i < 4; i++, light++) {
+        for (int i = 0; i < LIGHT_COUNT; i++, light++) {
             light->intensity = 300;
-            light->position_or_direction.x = i % 2 ? -10 : +10;
-            light->position_or_direction.y = i < 2 ? +10 : -20;
-            light->position_or_direction.z = -10;
+            light->position_or_direction.x = i % 2 ? -10.0f : +10.0f;
+            light->position_or_direction.y = i < 2 ? +10.0f : -20.0f;
+            light->position_or_direction.z = -10.0f;
         }
     }
     { // Setup Materials and Primitives:
