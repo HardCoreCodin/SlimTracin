@@ -26,7 +26,7 @@ More details on this architecture [here](https://youtu.be/Ev_TeQmus68).
 
 Features:
 -
-All features of SlimEngine are available here as well.<br>
+All features of <b>SlimEngine</b> are available here as well.<br>
 Additional features include raytracing facilities:<br>
 - Acceleration Structure (BVH) construction and traversal
 - Intersection shaders for triangular meshes and implicit geometry
@@ -35,7 +35,7 @@ Additional features include raytracing facilities:<br>
 - Debug render modes (Depth, Normal, UV and BVH-preview)
 
 The following example apps demonstrate how to use <b>SlimTracin</b>'s features:<br>
-<i>Note: Each example comes with CMake targets for either CPU-only (no CUDA required) or GPU-enabled (requiring CUDA)<i><br>
+<i>Note: Each example comes with CMake targets for CPU-only (no CUDA required) or GPU-enabled (requiring CUDA)</i><br>
 * <b><u>Implicit Geometry</b>:</u> Quad, Box, Sphere and Tetrahedra, all with UV-based transparency<br>
   <img src="src/examples/02_Geometry.gif" alt="02_Geometry" height="360"><br>
   <p float="left">
@@ -76,11 +76,11 @@ The following example apps demonstrate how to use <b>SlimTracin</b>'s features:<
     <img src="src/examples/07_Meshes_setup.png" alt="07_Meshes_setup" height="450">
     <img src="src/examples/07_Meshes_update.png" alt="07_Meshes_update" height="450">
   </p>
-  Mesh files are in a format native to the renderer which is optimized for ray/triangle intersection*.<br>
+  Mesh files are in a format native to the renderer which is optimized for ray/triangle intersection.<br>
   Converting `.obj` files to the native `.mesh` files can be done with a provided CLI tool:<br>
   `./obj2mesh src.obj trg.mesh [-i]`<br>
   -i : Invert triangle winding order (CW to CCW)<br>
-  <i>*Note: <b>SlimTracin</b>'s `.mesh` files are not the same as <b>SlimEngine</b>'s ones.</i>><br>  
+  Note: <b>SlimTracin</b>'s `.mesh` files are not the same as <b>SlimEngine</b>'s ones.<br>
 * <b><u>Textures</b>:</u> Albedo, Normal<br>
   Textures can be loaded from files for use as albedo or normal maps.<br>
   <p float="left">
