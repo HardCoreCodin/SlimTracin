@@ -32,14 +32,15 @@ enum HUD_LINE {
 };
 void updateSceneSelectionInHUD(Scene *scene, Viewport *viewport) {
     Primitive *prim = scene->selection->primitive;
-    char* shader = (char*)"";
-    char* transparent = (char*)"";
+    char* shader = "";
+    char* transparent = "";
     if (prim) {
-        shader = prim->material_id ? (char*)"Lambert" : (char*)"Emissive";
-        transparent = prim->flags & IS_TRANSPARENT ? (char*)("On") : (char*)("Off");
+        shader = prim->material_id ? "Lambert" : "Emissive";
+        transparent = prim->flags & IS_TRANSPARENT ? "On" : "Off";
     }
-    setString(&viewport->hud.lines[HUD_LINE_SHADING].value.string, shader);
-    setString(&viewport->hud.lines[HUD_LINE_TRANSPARENT].value.string, transparent);
+    HUDLine *lines = viewport->hud.lines;
+    setString(&lines[HUD_LINE_SHADING    ].value.string, shader);
+    setString(&lines[HUD_LINE_TRANSPARENT].value.string, transparent);
 }
 void updateViewport(Viewport *viewport, Mouse *mouse) {
     if (mouse->is_captured) {

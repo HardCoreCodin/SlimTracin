@@ -32,18 +32,21 @@ enum HUD_LINE {
 };
 void updateSceneSelectionInHUD(Scene *scene, Viewport *viewport) {
     Primitive *prim = scene->selection->primitive;
-    char* shader = (char*)"";
+    HUDLine *lines = viewport->hud.lines;
+    NumberString *roughness = &lines[HUD_LINE_ROUGHNESS].value;
+    NumberString *shading   = &lines[HUD_LINE_SHADING  ].value;
+    char* shader = "";
     if (prim) {
         switch (prim->material_id) {
-            case MATERIAL_BLINN: shader = (char*)"Blinn"; break;
-            case MATERIAL_PHONG: shader = (char*)"Phong"; break;
-            default: shader = (char*)"Lambert"; break;
+            case MATERIAL_BLINN: shader = "Blinn"; break;
+            case MATERIAL_PHONG: shader = "Phong"; break;
+            default: shader = "Lambert"; break;
         }
-        printFloatIntoString(scene->materials[prim->material_id].roughness,
-                             &viewport->hud.lines[HUD_LINE_ROUGHNESS].value, 2);
+        f32 value = scene->materials[prim->material_id].roughness;
+        printFloatIntoString(value, roughness, 2);
     } else
-        setString(&viewport->hud.lines[HUD_LINE_ROUGHNESS].value.string, (char*)"");
-    setString(&viewport->hud.lines[HUD_LINE_SHADING].value.string, shader);
+        setString(&roughness->string, "");
+    setString(&shading->string, shader);
 }
 void updateViewport(Viewport *viewport, Mouse *mouse) {
     if (mouse->is_captured) {

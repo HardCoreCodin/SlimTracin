@@ -91,6 +91,7 @@ void onMouseDoubleClicked(MouseButton *mouse_button) {
 }
 void onKeyChanged(u8 key, bool is_pressed) {
     Viewport *viewport = &app->viewport;
+    HUDLine *lines = viewport->hud.lines;
     NavigationMove* move = &app->viewport.navigation.move;
     if (key == 'R') move->up       = is_pressed;
     if (key == 'F') move->down     = is_pressed;
@@ -111,13 +112,13 @@ void onKeyChanged(u8 key, bool is_pressed) {
         if (key >= '1' && key <= '4') {
             char *str;
             switch (settings->render_mode) {
-                case RenderMode_Beauty : str = (char*)"Beauty";  break;
-                case RenderMode_Normals: str = (char*)"Normals"; break;
-                case RenderMode_Depth  : str = (char*)"Depth";   break;
-                case RenderMode_UVs    : str = (char*)"UVs";     break;
+                case RenderMode_Beauty : str = "Beauty";  break;
+                case RenderMode_Normals: str = "Normals"; break;
+                case RenderMode_Depth  : str = "Depth";   break;
+                case RenderMode_UVs    : str = "UVs";     break;
                 default: break;
             }
-            setString(&viewport->hud.lines[HUD_LINE_MODE].value.string, str);
+            setString(&lines[HUD_LINE_MODE].value.string, str);
         }
     }
 }
@@ -126,24 +127,20 @@ void setupViewport(Viewport *viewport) {
     hud->line_height = 1.2f;
     hud->position.x = hud->position.y = 10;
     HUDLine *line = hud->lines;
-    for (u8 i = 0; i < (u8)hud->line_count; i++, line++) {
-        String *alt = &line->alternate_value;
-        String *str = &line->value.string;
-        setString(str, (char*)"On");
-        setString(alt, (char*)"Off");
+    for (u8 i = 0; i < HUD_LINE_COUNT; i++, line++) {
+        setString(&line->value.string,     "On");
+        setString(&line->alternate_value, "Off");
         if (i) {
             line->alternate_value_color = Grey;
             line->invert_alternate_use = true;
             line->use_alternate = i == 1 ?
-                                  &viewport->settings.show_BVH :
-                                  &viewport->settings.show_SSB;
-        } else setString(str, (char*)"Beauty");
-        str = &line->title;
-        switch (i) {
-            case HUD_LINE_MODE: setString(str, (char*)"Mode: "); break;
-            case HUD_LINE_BVH : setString(str, (char*)"BVH : "); break;
-            case HUD_LINE_SSB : setString(str, (char*)"SSB : "); break;
-            default: break;
+                          &viewport->settings.show_BVH :
+                          &viewport->settings.show_SSB;
+            setString(&line->title,
+                      i == 1 ? "BVH : " : "SSB : ");
+        } else {
+            setString(&line->title, "Mode : ");
+            setString(&line->value.string, "Beauty");
         }
     }
 }

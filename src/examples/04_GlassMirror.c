@@ -33,17 +33,19 @@ enum HUD_LINE {
 };
 void updateSceneSelectionInHUD(Scene *scene, Viewport *viewport) {
     Primitive *prim = scene->selection->primitive;
-    char* shader = (char*)"";
+    HUDLine *lines = viewport->hud.lines;
+    NumberString *shading = &lines[HUD_LINE_SHADING].value;
+    NumberString *bounces = &lines[HUD_LINE_BOUNCES].value;
+    char* shader = "";
     if (prim) {
         switch (prim->material_id) {
-            case MATERIAL_MIRROR : shader = (char*)"Mirror";  break;
-            case MATERIAL_GLASS  : shader = (char*)"Glass";   break;
-            default: shader = (char*)"Lambert"; break;
+            case MATERIAL_MIRROR : shader = "Mirror";  break;
+            case MATERIAL_GLASS  : shader = "Glass";   break;
+            default: shader = "Lambert"; break;
         }
     }
-    setString(&viewport->hud.lines[HUD_LINE_SHADING].value.string, shader);
-    printNumberIntoString((i32)(viewport->trace.depth),
-                          &viewport->hud.lines[HUD_LINE_BOUNCES].value);
+    setString(&shading->string, shader);
+    printNumberIntoString((i32)(viewport->trace.depth), bounces);
 }
 void updateViewport(Viewport *viewport, Mouse *mouse) {
     if (mouse->is_captured) {

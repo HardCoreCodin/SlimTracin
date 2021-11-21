@@ -165,10 +165,10 @@ void setupScene(Scene *scene) {
 void initApp(Defaults *defaults) {
     static String mesh_files[MESH_COUNT];
     static char string_buffers[MESH_COUNT][100];
-    char* this_file   = (char*)__FILE__;
-    char* dog_file    = (char*)"dog.mesh";
-    char* dragon_file = (char*)"dragon.mesh";
-    char* monkey_file = (char*)"monkey.mesh";
+    char* this_file   = __FILE__;
+    char* dog_file    = "dog.mesh";
+    char* dragon_file = "dragon.mesh";
+    char* monkey_file = "monkey.mesh";
     String *dog    = &mesh_files[MESH_DOG];
     String *dragon = &mesh_files[MESH_DRAGON];
     String *monkey = &mesh_files[MESH_MONKEY];
