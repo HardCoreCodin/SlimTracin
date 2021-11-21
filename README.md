@@ -1,6 +1,6 @@
 <img src="SlimTracin_logo.png" alt="SlimTracin_logo"><br>
 
-<img src="src/examples/GPU.gif" alt="GPU" height="450"><br>
+<img src="src/examples/GPU.gif" alt="GPU"><br>
 
 A minimalist and platform-agnostic interactive/real-time raytracer.<br>
 Strong emphasis on simplicity, ease of use and almost no setup to get started with.<br>  
@@ -11,10 +11,8 @@ This project extends [SlimEngine](https://github.com/HardCoreCodin/SlimEngine).
 Optional GPU support is provided via CUDA.<br>
 The same C code is cross-compiled (no CUDA libraries used).<br>
 Compiling using CUDA allows for dynamic toggling between rendering on the CPU or the GPU.<br>
-<p float="left">
-  <img src="src/examples/XPU.gif" alt="XPU" height="360">
-  <img src="src/examples/XPU.png" alt="XPU" height="400">
-</p>
+<img src="src/examples/XPU.gif" alt="XPU">
+<img src="src/examples/XPU.png" alt="XPU">
 
 Architecture:
 -
