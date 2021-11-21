@@ -12,7 +12,7 @@ Optional GPU support is provided via CUDA.<br>
 The same C code is cross-compiled (no CUDA libraries used).<br>
 Compiling using CUDA allows for dynamic toggling between rendering on the CPU or the GPU.<br>
 <img src="src/examples/XPU.gif" alt="XPU">
-<img src="src/examples/XPU.png" alt="XPU" width="640">
+<img src="src/examples/XPU.png" alt="XPU" width="480">
 
 Architecture:
 -
@@ -36,49 +36,49 @@ The following example apps demonstrate how to use <b>SlimTracin</b>'s features:<
 <i>Note: Each example comes with CMake targets for CPU-only (no CUDA required) or GPU-enabled (requiring CUDA)</i><br>
 * <b><u>Implicit Geometry</b>:</u> Quad, Box, Sphere and Tetrahedra, all with UV-based transparency<br>
   <img src="src/examples/02_Geometry.gif" alt="02_Geometry"><br>
-  <img src="src/examples/02_Geometry_setup.png" alt="02_Geometry_setup" width="640">
-  <img src="src/examples/02_Geometry_transparency.png" alt="02_Geometry_transparency" width="640">
+  <img src="src/examples/02_Geometry_setup.png" alt="02_Geometry_setup" width="480">
+  <img src="src/examples/02_Geometry_transparency.png" alt="02_Geometry_transparency" width="480">
 * <b><u>Point lights</b>:</u> Can be moved around and scaled (changing their light intensity)<br>
   <img src="src/examples/01_Lights.gif" alt="01_Lights"><br>
-  <img src="src/examples/01_Lights_setup.png" alt="01_Lights_setup" width="640">
+  <img src="src/examples/01_Lights_setup.png" alt="01_Lights_setup" width="480">
 * <b><u>Area Lights</b>:</u> Emissive quads can be used as rectangular area lights<br>
   <img src="src/examples/06_AreaLights.gif" alt="06_AreaLights"><br>
   <p float="left">   
-    <img src="src/examples/06_AreaLights_setup.png" alt="06_AreaLights_setup" width="430">
+    <img src="src/examples/06_AreaLights_setup.png" alt="06_AreaLights_setup" width="420">
     <img src="src/examples/06_AreaLights_selection.png" alt="06_AreaLights_selection" width="400">
   </p>  
 * <b><u>Classic Materials</b>:</u> Lambert, Blinn, Phong<br>
   <img src="src/examples/03_BlinnPhong.gif" alt="03_BlinnPhong"><br>
   <p float="left">
     <img src="src/examples/03_BlinnPhong_setup.png" alt="03_BlinnPhong_setup" width="400">
-    <img src="src/examples/03_BlinnPhong_selection.png" alt="03_BlinnPhong_selection" width="430">
+    <img src="src/examples/03_BlinnPhong_selection.png" alt="03_BlinnPhong_selection" width="420">
   </p>
 * <b><u>PBR Materials</b>:</u> Cook-Torrance BRDF (Schlick/Smith GGX)<br>
   <img src="src/examples/05_PBR.gif" alt="05_PBR"><br>
-  <img src="src/examples/05_PBR.png" alt="05_PBR" width="640">
+  <img src="src/examples/05_PBR.png" alt="05_PBR" width="480">
 * <b><u>Reflective/Refractive Materials</b>:</u> For glasses and mirrors (bounce count is controlled globally)<br>
   <img src="src/examples/04_GlassMirror.gif" alt="04_GlassMirror"><br>
   <p float="left">   
     <img src="src/examples/04_GlassMirror_setup.png" alt="04_GlassMirror_setup" width="400">
-    <img src="src/examples/04_GlassMirror_selection.png" alt="04_GlassMirror_selection" width="430">
+    <img src="src/examples/04_GlassMirror_selection.png" alt="04_GlassMirror_selection" width="420">
   </p>
 * <b><u>Meshes</b>:</u> Transformable and can have smooth shading using vertex normal interpolation<br>
   <img src="src/examples/07_Meshes.gif" alt="07_Meshes"><br>
   <p float="left">
-    <img src="src/examples/07_Meshes_setup.png" alt="07_Meshes_setup" width="430">
+    <img src="src/examples/07_Meshes_setup.png" alt="07_Meshes_setup" width="420">
     <img src="src/examples/07_Meshes_init.png" alt="07_Meshes_init" width="400">
   </p>
   Mesh files are in a format native to the renderer which is optimized for ray/triangle intersection.<br>
 * <b><u>Textures</b>:</u> Albedo, Normal<br>
   <img src="src/examples/09_Textures.gif" alt="09_Textures"><br>
-  <img src="src/examples/09_Textures.png" alt="09_Textures" width="640"><br>
+  <img src="src/examples/09_Textures.png" alt="09_Textures" width="480"><br>
   Textures can be loaded from files for use as albedo or normal maps.<br>
   Texture files are in a format native to the renderer and optimized for filtered sampling.<br> 
 * <b><u>Render Modes</b>:</u> Beauty, Depth, Normals, UVs and BVHs<br>
   <img src="src/examples/08_Modes.gif" alt="08_Modes"><br>
   <p float="left">
-    <img src="src/examples/08_Modes_setup.png" alt="08_Modes_setup" height="400">
-    <img src="src/examples/08_Modes_update.png" alt="08_Modes_update" height="400">
+    <img src="src/examples/08_Modes_update.png" alt="08_Modes_update" width="420">
+    <img src="src/examples/08_Modes_setup.png" alt="08_Modes_setup" width="400">
   </p>
   BVHs can be shown as a wireframe overlay in any render mode.<br>
   <img src="src/examples/08_Modes_BVH.gif" alt="08_Modes_BVH"><br>
