@@ -37,6 +37,7 @@ INLINE vec2 getUVonUnitSphere(vec3 direction) {
     uv.x += 1;  uv.x /= 2;
     uv.y += 1;  uv.y /= 2;
 
+
     return uv;
 }
 
@@ -63,10 +64,7 @@ INLINE bool hitSphere(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
         return false;
 
     hit->distance_squared = squaredLengthVec3(*Ro) - t_to_closest*t_to_closest;
-//    if (hit->distance_squared < 0) {
-//        hit->distance = 0;
-//        return false;
-//    }
+
     f32 delta_squared = 1 - hit->distance_squared;
     if (delta_squared <= 0) { // Ray missed the sphere
         hit->distance = t_to_closest;
@@ -93,6 +91,8 @@ INLINE bool hitSphere(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
 
     hit->from_behind = !has_outer_hit;
     hit->normal = hit->position;
+    hit->NdotV = -dotVec3(hit->normal, *Rd);
+    hit->area = hit->uv_area = UNIT_SPHERE_AREA_OVER_SIX;
 
     return true;
 }

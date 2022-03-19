@@ -13,7 +13,6 @@
 #include "./shaders/closest_hit/surface.h"
 #include "./shaders/closest_hit/lights.h"
 #include "./SSB.h"
-//#include "rasterizer.h"
 #include "../viewport/viewport.h"
 
 void setBoxPrimitiveFromAABB(Primitive *box_primitive, AABB *aabb) {
@@ -80,6 +79,7 @@ void drawBVH(Scene *scene, Viewport *viewport) {
 }
 
 INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode, FloatPixel *pixel, u16 x, u16 y, vec3 camera_position, quat camera_rotation) {
+    RayHit *hit = &trace->closest_hit;
     vec3 Ro = ray->origin;
     vec3 Rd = ray->direction;
     vec3 color = getVec3Of(0);
@@ -87,27 +87,30 @@ INLINE void rayTrace(Ray *ray, Trace *trace, Scene *scene, enum RenderMode mode,
     bool lights_shaded = false;
 //    bool hit_found = traceRay(ray, trace, scene);
     bool hit_found = hitPrimitives(ray, trace, scene, scene->bvh.leaf_ids, scene->settings.primitives, false, true, x, y);
-    f32 closest_distance = hit_found ? trace->closest_hit.distance : INFINITY;
+    f32 closest_distance = hit_found ? hit->distance : INFINITY;
     f32 z = INFINITY;
     if (hit_found) {
-        z = mulVec3Quat(subVec3(trace->closest_hit.position, camera_position), camera_rotation).z;
+        z = mulVec3Quat(subVec3(hit->position, camera_position), camera_rotation).z;
 
         switch (mode) {
             case RenderMode_Beauty: color = shadeSurface(ray, trace, scene, &lights_shaded); break;
-            case RenderMode_Depth  : color = shadeDepth(trace->closest_hit.distance); break;
+            case RenderMode_Depth  : color = shadeDepth(hit->distance); break;
             case RenderMode_Normals: {
-                    Material *M = scene->materials  + trace->closest_hit.material_id;
+                    Material *M = scene->materials  + hit->material_id;
                     if (M->texture_count > 1 && M->use & NORMAL_MAP) {
-                        vec2 uv = Vec2(trace->closest_hit.uv.u * M->uv_repeat.u, trace->closest_hit.uv.v * M->uv_repeat.v);
-                        quat rotation = getNormalRotation(sampleNormal(scene->textures[M->texture_ids[1]].mips, uv));
-                        trace->closest_hit.normal = mulVec3Quat(trace->closest_hit.normal, rotation);
+                        vec2 uv = Vec2(hit->uv.u * M->uv_repeat.u, hit->uv.v * M->uv_repeat.v);
+                        hit->uv_area /= M->uv_repeat.u / M->uv_repeat.v;
+                        vec2 dUV;
+                        dUV.u = dUV.x = dUVbyRayCone(hit->NdotV, hit->cone_width, hit->area, hit->uv_area);
+                        quat rotation = getNormalRotation(sampleNormal(scene->textures + M->texture_ids[1], uv, dUV));
+                        hit->normal = mulVec3Quat(hit->normal, rotation);
                     }
 
-                    color = shadeDirection(trace->closest_hit.normal);
+                    color = shadeDirection(hit->normal);
 
                 }
                 break;
-            case RenderMode_UVs    : color = shadeUV(trace->closest_hit.uv);            break;
+            case RenderMode_UVs    : color = shadeUV(hit->uv);            break;
         }
     }
 
@@ -137,9 +140,9 @@ void renderSceneOnCPU(Scene *scene, Viewport *viewport) {
 
     quat camera_rotation = viewport->camera->transform.rotation_inverted;
     vec3 camera_position = viewport->camera->transform.position;
-    vec3 start      = viewport->projection_plane.start;
-    vec3 right      = viewport->projection_plane.right;
-    vec3 down       = viewport->projection_plane.down;
+    vec3 start = viewport->projection_plane.start;
+    vec3 right = viewport->projection_plane.right;
+    vec3 down  = viewport->projection_plane.down;
     vec3 current = start;
 
     Ray ray;
@@ -156,6 +159,8 @@ void renderSceneOnCPU(Scene *scene, Viewport *viewport) {
             ray.direction = normVec3(current);
             ray.direction_reciprocal = oneOverVec3(ray.direction);
             trace->closest_hit.distance = trace->closest_hit.distance_squared = INFINITY;
+            trace->closest_hit.cone_angle = viewport->projection_plane.cone_angle;
+            trace->closest_hit.cone_width = 0;
 
             rayTrace(&ray, trace, scene, mode, pixel, x, y, camera_position, camera_rotation);
 
@@ -231,17 +236,21 @@ __global__ void d_render(ProjectionPlane projection_plane, enum RenderMode mode,
         triangles_offset    += mesh->triangle_count;
     }
 
-    Texture *texture = textures;
     TextureMip *mip = texture_mips;
     TexelQuad *quads = texel_quads;
-    for (u32 t = 0; t < scene.settings.textures; t++, texture++, mip++) {
+    Texture *texture = textures;
+    for (u32 t = 0; t < scene.settings.textures; t++, texture++) {
         texture->mips = mip;
-        mip->texel_quads = quads;
-        quads += mip->width * mip->height;
+        for (u32 m = 0; m < texture->mip_count; m++, mip++) {
+            mip->texel_quads = quads;
+            quads += mip->width * mip->height;
+        }
     }
 
     ray.direction_reciprocal = oneOverVec3(ray.direction);
     trace.closest_hit.distance = trace.closest_hit.distance_squared = INFINITY;
+    trace.closest_hit.cone_angle = projection_plane.cone_angle;
+    trace.closest_hit.cone_width = 0;
 
     rayTrace(&ray, &trace, &scene, mode, pixel, x, y, camera_position, camera_rotation);
 }
@@ -291,14 +300,10 @@ void renderSceneOnGPU(Scene *scene, Viewport *viewport) {
 #endif
 
 void renderScene(Scene *scene, Viewport *viewport) {
-//    if (app->viewport.settings.rasterize)
-//        rasterize(scene, viewport, &app->rasterizer);
-//    else {
 #ifdef __CUDACC__
     if (viewport->settings.use_GPU) renderSceneOnGPU(scene, viewport);
     else                            renderSceneOnCPU(scene, viewport);
 #else
         renderSceneOnCPU(scene, viewport);
 #endif
-//    }
 }

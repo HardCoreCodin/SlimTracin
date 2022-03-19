@@ -20,6 +20,7 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
 
     RayHit *hit = &trace->current_hit;
     RayHit *closest_hit = &trace->closest_hit;
+    f32 cone_angle = closest_hit->cone_angle;
 
     Primitive *hit_primitive, *primitive;
     u32 hit_primitive_id, *primitive_id = primitive_ids;
@@ -79,10 +80,11 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
     }
 
     if (found) {
+        Mesh *mesh = null;
         if (closest_hit->object_type == PrimitiveType_Mesh) {
-            Mesh *mesh = scene->meshes + hit_primitive->id;
+            mesh = scene->meshes + hit_primitive->id;
             Triangle *triangle = mesh->triangles + closest_hit->object_id;
-            if (mesh->normals_count > 0 || mesh->uvs_count > 0) {
+            if (mesh->normals_count | mesh->uvs_count) {
                 f32 u = closest_hit->uv.u;
                 f32 v = closest_hit->uv.v;
                 f32 w = 1 - u - v;
@@ -101,6 +103,9 @@ INLINE bool hitPrimitives(Ray *ray, Trace *trace, Scene *scene,
         closest_hit->object_id = hit_primitive_id;
         closest_hit->normal = normVec3(convertDirectionToWorldSpace(closest_hit->normal, hit_primitive));
         closest_hit->distance = sqrtf(closest_hit->distance_squared);
+        closest_hit->cone_width = 2.0f * cone_angle * closest_hit->distance;
+        vec3 rotated_scale = mulVec3Quat(hit_primitive->scale, hit_primitive->rotation);
+        closest_hit->area *= dotVec3(oneMinusVec3(closest_hit->normal), rotated_scale);
     }
 
     return found;

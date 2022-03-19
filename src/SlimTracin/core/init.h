@@ -50,16 +50,22 @@ void allocateDeviceScene(Scene *scene) {
     }
 
     if (scene->settings.textures) {
+        u32 total_mip_count = 0;
         u32 total_texel_quads_count = 0;
-        for (u32 i = 0; i < scene->settings.textures; i++) {
-            total_texel_quads_count += scene->textures[i].mips[0].width * scene->textures[i].mips[0].height;
+        Texture *texture = scene->textures;
+        for (u32 i = 0; i < scene->settings.textures; i++, texture++) {
+            total_mip_count += texture->mip_count;
+            TextureMip *mip = texture->mips;
+            for (u32 m = 0; m < texture->mip_count; m++, mip++)
+                total_texel_quads_count += mip->width * mip->height;
         }
-        gpuErrchk(cudaMalloc(&d_texel_quads, sizeof(TexelQuad)  * total_texel_quads_count))
+        gpuErrchk(cudaMalloc(&d_texel_quads, sizeof(TexelQuad) * total_texel_quads_count))
+        gpuErrchk(cudaMalloc(&d_textures,           sizeof(Texture)  * scene->settings.textures))
+        gpuErrchk(cudaMalloc(&d_texture_mips,       sizeof(TextureMip) * total_mip_count))
+
     }
 
     gpuErrchk(cudaMalloc(&d_materials,          sizeof(Material) * scene->settings.materials))
-    gpuErrchk(cudaMalloc(&d_textures,           sizeof(Texture)  * scene->settings.textures))
-    gpuErrchk(cudaMalloc(&d_texture_mips,       sizeof(TextureMip) * scene->settings.textures))
     gpuErrchk(cudaMalloc(&d_scene_bvh_leaf_ids, sizeof(u32)      * scene->settings.primitives))
     gpuErrchk(cudaMalloc(&d_scene_bvh_nodes,    sizeof(BVHNode)  * scene->settings.primitives * 2))
     gpuErrchk(cudaMalloc(&d_mesh_bvh_nodes,     sizeof(BVHNode)  * total_triangles * 2))
@@ -81,15 +87,19 @@ void uploadScene(Scene *scene) {
     uploadPrimitives(scene);
     uploadMaterials(scene);
     uploadN( scene->textures,  d_textures,scene->settings.textures)
-    u32 offset = 0;
+    u32 texel_quads_offset = 0;
+    u32 mip_index_offset = 0;
     u32 dim;
-    TextureMip *mip;
-    for (u32 i = 0; i < scene->settings.textures; i++) {
-        mip = &scene->textures[i].mips[0];
-        dim = mip->width * mip->height;
-        uploadNto( mip->texel_quads, d_texel_quads, dim, offset)
-        uploadNto( mip,  d_texture_mips, 1, i)
-        offset += dim;
+    Texture *texture = scene->textures;
+    for (u32 i = 0; i < scene->settings.textures; i++, texture++) {
+        uploadNto( texture->mips,  d_texture_mips, texture->mip_count, mip_index_offset)
+        mip_index_offset += texture->mip_count;
+        TextureMip *mip = texture->mips;
+        for (u32 m = 0; m < texture->mip_count; m++, mip++) {
+            dim = mip->width * mip->height;
+            uploadNto( mip->texel_quads, d_texel_quads, dim, texel_quads_offset)
+            texel_quads_offset += dim;
+        }
     }
 }
 

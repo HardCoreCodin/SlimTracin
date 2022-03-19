@@ -15,6 +15,7 @@ INLINE bool hitTriangles(Ray *ray, RayHit *hit, RayHit *closest_hit, Triangle *t
             if (UV.x < 0 || UV.y < 0 || (UV.x + UV.y) > 1)
                 continue;
 
+            closest_hit->NdotV = hit->NdotV;
             closest_hit->normal = hit->normal;
             closest_hit->uv.x = UV.x;
             closest_hit->uv.y = UV.y;
@@ -22,6 +23,8 @@ INLINE bool hitTriangles(Ray *ray, RayHit *hit, RayHit *closest_hit, Triangle *t
             closest_hit->from_behind = hit->from_behind;
             closest_hit->distance = hit->distance;
             closest_hit->position = hit->position;
+            closest_hit->area = triangle->area_of_parallelogram;
+            closest_hit->uv_area = triangle->area_of_uv;
 
             found_triangle = true;
 

@@ -28,9 +28,11 @@ All features of <b>SlimEngine</b> are available here as well.<br>
 Additional features include raytracing facilities:<br>
 - Acceleration Structure (BVH) construction and traversal
 - Intersection shaders for triangular meshes and implicit geometry
-- Raytracing specific shaders (Glass, Mirror, Area lights)
-- Physically based materials (Micro-facet Cook-Torrance BRDF)
 - Debug render modes (Depth, Normal, UV and BVH-preview)
+- Physically based materials (Micro-facet Cook-Torrance BRDF)
+- Raytracing specific shaders (Glass, Mirror, Area lights)
+- Textures (Bi-Linear filtered) with adaptive mip-selection (using ray cones)
+<img src="src/examples/RayCones.gif" alt="RayCones" width="540"><br>
 
 The following example apps demonstrate how to use <b>SlimTracin</b>'s features:<br>
 <i>Note: Each example comes with CMake targets for CPU-only (no CUDA required) or GPU-enabled (requiring CUDA)</i><br>

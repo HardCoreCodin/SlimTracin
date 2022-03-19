@@ -111,6 +111,7 @@ typedef void (*CallbackWithCharPtr)(char* str);
 
 #define pi (3.14159265f)
 #define TAU (2.0f*pi)
+#define UNIT_SPHERE_AREA_OVER_SIX ((4.0f*pi)/6.0f)
 #define ONE_OVER_PI (1.0f/pi)
 #define ONE_OVER_TWO_PI (1.0f/TAU)
 

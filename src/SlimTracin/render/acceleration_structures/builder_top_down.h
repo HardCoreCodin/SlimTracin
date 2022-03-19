@@ -339,7 +339,8 @@ void updateMeshBVH(Mesh *mesh, BVHBuilder *builder) {
         m3.X = subVec3(*v3, *v1);
         m3.Y = subVec3(*v2, *v1);
         m3.Z = crossVec3(m3.X, m3.Y);
-        m3.Z = normVec3(m3.Z);
+        triangle->area_of_parallelogram = lengthVec3(m3.Z);
+        m3.Z = scaleVec3(m3.Z, 1.0f / triangle->area_of_parallelogram);
 
         indices = mesh->vertex_normal_indices + *triangle_id;
 
@@ -354,9 +355,10 @@ void updateMeshBVH(Mesh *mesh, BVHBuilder *builder) {
 
         if (mesh->uvs_count) {
             indices = mesh->vertex_uvs_indices + *triangle_id;
-            triangle->uvs[0] = mesh->vertex_uvs[indices->ids[0]];
-            triangle->uvs[1] = mesh->vertex_uvs[indices->ids[1]];
-            triangle->uvs[2] = mesh->vertex_uvs[indices->ids[2]];
+            vec2 a = triangle->uvs[0] = mesh->vertex_uvs[indices->ids[0]];
+            vec2 b = triangle->uvs[1] = mesh->vertex_uvs[indices->ids[1]];
+            vec2 c = triangle->uvs[2] = mesh->vertex_uvs[indices->ids[2]];
+            triangle->area_of_uv = fabsf((b.x-a.x) * (c.y-a.y) - (c.x-a.x) * (b.y-a.y));
         }
     }
 }

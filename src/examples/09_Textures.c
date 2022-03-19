@@ -21,6 +21,7 @@ enum HUD_LINE {
     HUD_LINE_MATERIAL,
     HUD_LINE_ALBEDO,
     HUD_LINE_NORMAL,
+    HUD_LINE_UV_REPEAT,
     HUD_LINE_ROUGHNESS,
     HUD_LINE_BOUNCES,
     HUD_LINE_COUNT
@@ -61,6 +62,7 @@ void updateSelectionInHUD(Selection *selection, HUDLine *lines) {
     if (!prim) {
         setString(&lines[HUD_LINE_MESH].value.string, (char*)"");
         setString(&lines[HUD_LINE_MATERIAL].value.string, (char*)"");
+        setString(&lines[HUD_LINE_UV_REPEAT].value.string, (char*)"");
         setString(&lines[HUD_LINE_PRIM].value.string, selection->object_type == PrimitiveType_Light ? (char*)"Light" : (char*)"");
         return;
     }
@@ -68,6 +70,7 @@ void updateSelectionInHUD(Selection *selection, HUDLine *lines) {
     setString(&lines[HUD_LINE_ROUGHNESS].value.string, (char*)"");
     char *str;
     Material *M = app->scene.materials + prim->material_id;
+    printNumberIntoString((i32)M->uv_repeat.u, &lines[HUD_LINE_UV_REPEAT].value);
     switch (prim->material_id) {
         case MATERIAL_MIRROR : str = (char*)"Mirror"; break;
         case MATERIAL_GLASS : str = (char*)"Glass"; break;
@@ -245,7 +248,7 @@ void onKeyChanged(u8 key, bool is_pressed) {
                         if (prim->material_id == MATERIAL_FLOOR && prim->type != PrimitiveType_Quad) prim->material_id = MATERIAL_PBR;
                         uploadPrimitives(scene);
                     }
-                } else if (pressed.ctrl)  {
+                } else if (pressed.ctrl && !pressed.space)  {
                     nextMat(prim, inc);
                     for (u8 i = 0; i < 3; i++) {
                         if (prim->material_id == MATERIAL_FLOOR && prim->type != PrimitiveType_Quad) nextMat(prim, inc);
@@ -254,10 +257,19 @@ void onKeyChanged(u8 key, bool is_pressed) {
                     uploadPrimitives(scene);
                 } else if (pressed.space) {
                     Material *M = scene->materials + prim->material_id;
-                    if (M->brdf == BRDF_CookTorrance) {
-                        M->roughness = clampValueToBetween(M->roughness + (f32)inc * 0.05f, 0.05f, 1.0f);
-                        printFloatIntoString(M->roughness, &viewport->hud.lines[HUD_LINE_ROUGHNESS].value, 2);
+                    if (pressed.ctrl)  {
+                        i32 rep = (i32)log2f(M->uv_repeat.u);
+                        rep += (i32)inc;
+                        if (rep <= 0) rep = 1;
+                        if (rep >= 4) rep = 4;
+                        M->uv_repeat.u = M->uv_repeat.v = powf(2.0f, (f32)rep);
                         uploadMaterials(scene);
+                    } else {
+                        if (M->brdf == BRDF_CookTorrance) {
+                            M->roughness = clampValueToBetween(M->roughness + (f32)inc * 0.05f, 0.05f, 1.0f);
+                            printFloatIntoString(M->roughness, &viewport->hud.lines[HUD_LINE_ROUGHNESS].value, 2);
+                            uploadMaterials(scene);
+                        }
                     }
                 }
                 updateSelectionInHUD(scene->selection, viewport->hud.lines);
@@ -315,6 +327,7 @@ void setupViewport(Viewport *viewport) {
             case HUD_LINE_MATERIAL:  setString(&line->title, (char*)"Mat : "); break;
             case HUD_LINE_ALBEDO:    setString(&line->title, (char*)"Albd: "); break;
             case HUD_LINE_NORMAL:    setString(&line->title, (char*)"Norm: "); break;
+            case HUD_LINE_UV_REPEAT: setString(&line->title, (char*)"Rep.: "); break;
             case HUD_LINE_ROUGHNESS: setString(&line->title, (char*)"Rogh: "); break;
             case HUD_LINE_BOUNCES:   setString(&line->title, (char*)"Bnc : "); break;
             default: break;
@@ -352,7 +365,7 @@ void setupScene(Scene *scene) {
         Primitive *sphere = scene->primitives + PRIM_SPHERE;
         Primitive *mesh   = scene->primitives + PRIM_MESH;
 
-        mesh->id = MESH_DRAGON;
+        mesh->id = MESH_DOG;
         mesh->type   = PrimitiveType_Mesh;
         box->type    = PrimitiveType_Box;
         floor->type  = PrimitiveType_Quad;
@@ -361,14 +374,15 @@ void setupScene(Scene *scene) {
 
         floor->material_id  = MATERIAL_FLOOR;
         box->material_id    = MATERIAL_PBR;
-        mesh->material_id   = MATERIAL_PBR;
+        mesh->material_id   = MATERIAL_DOG;
         tet->material_id    = MATERIAL_GLASS;
         sphere->material_id = MATERIAL_MIRROR;
 
         mesh->scale      = getVec3Of(0.6f);
         mesh->position   = Vec3(0, 4, -1);
         floor->scale     = Vec3(40, 1, 40);
-        sphere->position = Vec3(5, 3, 0);
+        sphere->position = Vec3(8, 5, 0);
+        sphere->scale    = Vec3(3, 3, 3);
         box->position    = Vec3(-9, 3, 3);
         tet->position    = Vec3(-3, 4, 12);
 
@@ -395,6 +409,10 @@ void setupScene(Scene *scene) {
         mirror->reflectivity = getVec3Of(0.3f);
         mirror->metallic = 1.0f;
         mirror->roughness = 0.0f;
+        mirror->use = NORMAL_MAP;
+        mirror->texture_count = 2;
+        mirror->texture_ids[0] = TEXTURE_FLOOR_ALBEDO;
+        mirror->texture_ids[1] = TEXTURE_FLOOR_NORMAL;
 
         glass->brdf = BRDF_Blinn;
         glass->is = REFRACTIVE;
@@ -406,12 +424,14 @@ void setupScene(Scene *scene) {
         glass->reflectivity = Vec3(0.7f, 0.9f, 0.7f);
 
         pbr->albedo  = getVec3Of(0.7f);
+        pbr->roughness = 0.5f;
         pbr->brdf = BRDF_CookTorrance;
 
         floor->brdf = BRDF_CookTorrance;
         floor->texture_count = 2;
         floor->texture_ids[0] = TEXTURE_FLOOR_ALBEDO;
         floor->texture_ids[1] = TEXTURE_FLOOR_NORMAL;
+        floor->uv_repeat.u = floor->uv_repeat.v = 4;
 
         dog->brdf = BRDF_CookTorrance;
         dog->texture_count = 2;

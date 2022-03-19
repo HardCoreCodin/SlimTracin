@@ -53,14 +53,21 @@ INLINE BoxSide hitBox(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
 
     hit->normal = getVec3Of(0);
     switch (side) {
-        case Left:   hit->normal.x = hit->from_behind ? +1.0f : -1.0f; break;
-        case Right:  hit->normal.x = hit->from_behind ? -1.0f : +1.0f; break;
-        case Bottom: hit->normal.y = hit->from_behind ? +1.0f : -1.0f; break;
-        case Top:    hit->normal.y = hit->from_behind ? -1.0f : +1.0f; break;
-        case Back:   hit->normal.z = hit->from_behind ? +1.0f : -1.0f; break;
-        case Front:  hit->normal.z = hit->from_behind ? -1.0f : +1.0f; break;
+        case Left:   hit->normal.x = -1.0f; hit->NdotV = +Rd->x; break;
+        case Right:  hit->normal.x = +1.0f; hit->NdotV = -Rd->x; break;
+        case Bottom: hit->normal.y = -1.0f; hit->NdotV = +Rd->y; break;
+        case Top:    hit->normal.y = +1.0f; hit->NdotV = -Rd->y; break;
+        case Back:   hit->normal.z = -1.0f; hit->NdotV = +Rd->z; break;
+        case Front:  hit->normal.z = +1.0f; hit->NdotV = -Rd->z; break;
         default: return NoSide;
     }
+    if (hit->from_behind) {
+        hit->normal = invertedVec3(hit->normal);
+        hit->NdotV = -hit->NdotV;
+    }
+
+    hit->area = 4;
+    hit->uv_area = 1;
 
     return side;
 }

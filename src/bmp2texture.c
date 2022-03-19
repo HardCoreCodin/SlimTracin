@@ -179,8 +179,6 @@ void initTextureMipLoader(TextureMipLoader *mip, u16 width, u16 height) {
 }
 
 void loadTextureMipLoader(TextureMipLoader *mip, bool wrap) {
-    TexelQuadLoader *top_texel_quad_line    = mip->texel_quads;
-    TexelQuadLoader *bottom_texel_quad_line = mip->texel_quads + (mip->height * (mip->width - 1));
     TexelQuadLoader *TL, *TR, *BL, *BR;
     bool L, R, T, B;
     const u16 last_y = mip->height - 1;
@@ -189,6 +187,8 @@ void loadTextureMipLoader(TextureMipLoader *mip, bool wrap) {
     const u32 r = mip->width;
     const u16 stride = mip->width + 1;
     vec4 *texel = mip->texels;
+    TexelQuadLoader *top_texel_quad_line = mip->texel_quads;
+    TexelQuadLoader *bottom_texel_quad_line = top_texel_quad_line + mip->height * stride;
     TexelQuadLoader *current_line = top_texel_quad_line, *next_line = top_texel_quad_line + stride;
     for (u16 y = 0; y < mip->height; y++, current_line += stride, next_line += stride) {
         T = (y == 0);

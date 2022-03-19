@@ -184,8 +184,8 @@ typedef struct Ray {
 
 typedef struct RayHit {
     vec3 position, normal;
-    vec2 uv;
-    f32 distance, distance_squared;
+    vec2 uv, dUV;
+    f32 distance, distance_squared, cone_angle, cone_width, NdotV, area, uv_area;
     u32 material_id, object_id, object_type;
     bool from_behind;
 } RayHit;
@@ -238,6 +238,7 @@ typedef struct Navigation {
 
 typedef struct ProjectionPlane {
     vec3 start, right, down;
+    f32 cone_angle;
 } ProjectionPlane;
 
 typedef struct ViewportSettings {
@@ -273,6 +274,7 @@ typedef struct Triangle {
     vec3 position, normal;
     vec3 vertex_normals[3];
     vec2 uvs[3];
+    f32 area_of_parallelogram, area_of_uv;
 } Triangle;
 typedef struct EdgeVertexIndices { u32 from, to; } EdgeVertexIndices;
 typedef union TriangleVertexIndices { u32 ids[3]; struct { u32 v1, v2, v3; }; } TriangleVertexIndices;

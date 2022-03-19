@@ -95,6 +95,9 @@ INLINE bool hitTetrahedron(RayHit *closest_hit, vec3 *Ro, vec3 *Rd, u8 flags) {
 
         if (hit.distance < closest_distance) {
             closest_distance = hit.distance;
+            hit.area = SQRT3 / 4.0f;
+            hit.uv_area = 1;
+            hit.NdotV = -dotVec3(hit.normal, *Rd);
             *closest_hit = hit;
             found_triangle = true;
         }

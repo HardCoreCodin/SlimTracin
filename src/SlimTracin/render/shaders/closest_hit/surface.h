@@ -128,8 +128,8 @@ INLINE bool shadeFromEmissiveQuads(Shaded *shaded, Ray *ray, Trace *trace, Scene
     return found;
 }
 
-INLINE vec3 sampleNormal(TextureMip *mip, vec2 uv) {
-    vec3 normal = sampleTextureMip(mip, uv).v3;
+INLINE vec3 sampleNormal(Texture *texture, vec2 uv, vec2 dUV) {
+    vec3 normal = sampleTexture(texture, uv, dUV).v3;
     f32 y = normal.z;
     normal.z = normal.y;
     normal.y = y;
@@ -137,10 +137,10 @@ INLINE vec3 sampleNormal(TextureMip *mip, vec2 uv) {
 }
 INLINE quat getNormalRotation(vec3 normal) {
     quat q;
-    q.axis.x = normal.z;
+    q.axis.x = normal.z * 0.25f;
     q.axis.y = 0;
-    q.axis.z = normal.x;
-    q.amount = normal.y;
+    q.axis.z = normal.x * 0.25f;
+    q.amount = normal.y * 0.25f;
     return normQuat(q);
 }
 INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene, bool *lights_shaded) {
@@ -149,6 +149,7 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene, bool *lights_shad
     Material *M = scene->materials  + hit->material_id;
     if (M->is & EMISSIVE) return hit->from_behind ? color : M->emission;
 
+    vec2 dUV;
     Shaded shaded;
     shaded.viewing_origin    = ray->origin;
     shaded.viewing_direction = ray->direction;
@@ -157,9 +158,11 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene, bool *lights_shad
     shaded.albedo = shaded.material->albedo;
     if (M->use && M->texture_count) {
         shaded.uv = Vec2(hit->uv.u * M->uv_repeat.u, hit->uv.v * M->uv_repeat.v);
-        if (M->use & ALBEDO_MAP) shaded.albedo = sampleTextureMip(scene->textures[M->texture_ids[0]].mips, shaded.uv).v3;
+        hit->uv_area /= M->uv_repeat.u / M->uv_repeat.v;
+        dUV.u = dUV.v = dUVbyRayCone(hit->NdotV, hit->cone_width, hit->area, hit->uv_area);
+        if (M->use & ALBEDO_MAP) shaded.albedo = sampleTexture(scene->textures + M->texture_ids[0], shaded.uv, dUV).v3;
         if (M->use & NORMAL_MAP && M->texture_count > 1) {
-            quat rotation = getNormalRotation(sampleNormal(scene->textures[M->texture_ids[1]].mips, shaded.uv));
+            quat rotation = getNormalRotation(sampleNormal(scene->textures + M->texture_ids[1], shaded.uv, dUV));
             hit->normal = mulVec3Quat(hit->normal, rotation);
         }
     }
@@ -223,9 +226,11 @@ INLINE vec3 shadeSurface(Ray *ray, Trace *trace, Scene *scene, bool *lights_shad
                 shaded.albedo = M->albedo;
                 if (M->use && M->texture_count) {
                     shaded.uv = Vec2(hit->uv.u * M->uv_repeat.u, hit->uv.v * M->uv_repeat.v);
-                    if (M->use & ALBEDO_MAP) shaded.albedo = sampleTextureMip(scene->textures[M->texture_ids[0]].mips, shaded.uv).v3;
+                    hit->uv_area /= M->uv_repeat.u / M->uv_repeat.v;
+                    dUV.u = dUV.x = dUVbyRayCone(hit->NdotV, hit->cone_width, hit->area, hit->uv_area);
+                    if (M->use & ALBEDO_MAP) shaded.albedo = sampleTexture(scene->textures + M->texture_ids[0], shaded.uv, dUV).v3;
                     if (M->use & NORMAL_MAP && M->texture_count > 1) {
-                        quat rotation = getNormalRotation(sampleNormal(scene->textures[M->texture_ids[1]].mips, shaded.uv));
+                        quat rotation = getNormalRotation(sampleNormal(scene->textures + M->texture_ids[1], shaded.uv, dUV));
                         hit->normal = mulVec3Quat(hit->normal, rotation);
                     }
                 }

@@ -2,6 +2,7 @@
 
 #include "../../core/types.h"
 #include "../../math/vec3.h"
+#include "../../math/vec2.h"
 
 // Filmic Tone-Mapping: https://www.slideshare.net/naughty_dog/lighting-shading-by-john-hable
 // ====================
@@ -174,19 +175,18 @@ INLINE void setRayFromCoords(Ray *ray, vec2i coords, Viewport *viewport) {
 }
 
 INLINE bool hitPlane(vec3 plane_origin, vec3 plane_normal, vec3 *ray_origin, vec3 *ray_direction, RayHit *hit) {
-    f32 Rd_dot_n = dotVec3(*ray_direction, plane_normal);
-    if (Rd_dot_n == 0) // The ray is parallel to the plane
+    hit->NdotV = -dotVec3(*ray_direction, plane_normal);
+    if (hit->NdotV == 0) // The ray is parallel to the plane
         return false;
 
-    bool ray_is_facing_the_plane = Rd_dot_n < 0;
-
-    vec3 RtoP = subVec3(*ray_origin, plane_origin);
-    f32 Po_to_Ro_dot_n = dotVec3(RtoP, plane_normal);
-    hit->from_behind = Po_to_Ro_dot_n < 0;
+    bool ray_is_facing_the_plane = hit->NdotV > 0;
+    vec3 RP = subVec3(plane_origin, *ray_origin);
+    f32 RPdotN = dotVec3(RP, plane_normal);
+    hit->from_behind = RPdotN > 0;
     if (hit->from_behind == ray_is_facing_the_plane) // The ray can't hit the plane
         return false;
 
-    hit->distance = fabsf(Po_to_Ro_dot_n / Rd_dot_n);
+    hit->distance = fabsf(RPdotN / hit->NdotV);
     hit->position = scaleVec3(*ray_direction, hit->distance);
     hit->position = addVec3(*ray_origin,      hit->position);
     hit->normal   = plane_normal;
@@ -331,4 +331,9 @@ INLINE vec3 shadePointOnSurface(Shaded *shaded, f32 NdotL) {
     f32 D = ggxNDF(M->roughness * M->roughness, NdotH);
     f32 G = ggxSmithSchlick(NdotL, NdotV, M->roughness);
     return scaleAddVec3(F, D * G / (4.0f * NdotV), diffuse);
+}
+
+INLINE f32 dUVbyRayCone(f32 NdotV, f32 cone_width, f32 area, f32 uv_area) {
+    f32 projected_cone_width = cone_width / fabsf(NdotV);
+    return sqrtf((projected_cone_width * projected_cone_width) * (uv_area / area));
 }

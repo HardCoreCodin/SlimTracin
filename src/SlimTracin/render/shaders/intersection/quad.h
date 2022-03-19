@@ -34,6 +34,9 @@ INLINE bool hitQuad(RayHit *hit, vec3 *Ro, vec3 *Rd, u8 flags) {
     hit->normal.x = 0;
     hit->normal.y = 1;
     hit->normal.z = 0;
+    hit->NdotV = -Rd->y;
+    hit->area = 4;
+    hit->uv_area = 1;
 
     return true;
 }
